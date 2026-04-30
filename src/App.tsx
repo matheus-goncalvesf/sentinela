@@ -249,12 +249,12 @@ function LandingPage({ onEntrar, onSignup }: { onEntrar: () => void; onSignup?: 
         <div className="mx-auto max-w-4xl text-center">
           <div className="mb-3 text-xs font-semibold tracking-[0.08em] text-primary">PLANOS</div>
           <h2 className="mb-4 text-4xl font-extrabold tracking-tight">Preço justo, sem surpresas</h2>
-          <p className="mb-14 text-muted-foreground">Todos os planos incluem 14 dias de teste grátis.</p>
+          <p className="mb-14 text-muted-foreground">Escolha o plano ideal para a sua rotina.</p>
           <div className="grid gap-6 md:grid-cols-3">
             {[
-              { name: "Starter", price: "R$ 297", period: "/mês", cnpjs: "Até 20 CNPJs", featured: false, items: ["Monitoramento TJSP", "Alertas por e-mail", "Dashboard básico", "1 usuário"] },
-              { name: "Professional", price: "R$ 697", period: "/mês", cnpjs: "Até 100 CNPJs", featured: true, items: ["Tudo do Starter", "Alertas por WhatsApp", "Relatórios em PDF", "Até 5 usuários", "API de integração"] },
-              { name: "Enterprise", price: "Sob consulta", period: "", cnpjs: "CNPJs ilimitados", featured: false, items: ["Tudo do Professional", "SLA dedicado", "Integrações customizadas", "Usuários ilimitados"] },
+              { name: "Gratuito", price: "R$ 0", period: "/mês", cnpjs: "Para conhecer", featured: false, items: ["Busca no TJSP", "Motor de prescrição (Tema 566)", "Relatórios em PDF", "Histórico local"] },
+              { name: "Profissional", price: "R$ 97", period: "/mês", cnpjs: "Uso diário", featured: true, items: ["Tudo do Gratuito", "Upload em massa (CSV)", "Análise em lote", "Suporte prioritário"] },
+              { name: "Escritórios", price: "Sob consulta", period: "", cnpjs: "Alto volume", featured: false, items: ["Tudo do Profissional", "Treinamento da equipe", "Implementação guiada"] },
             ].map((plan) => (
               <div
                 key={plan.name}

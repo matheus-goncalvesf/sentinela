@@ -37,6 +37,19 @@ export type ScorePrescricao =
   | "sem_base"
   | "inconclusivo";
 
+export type FasePrescricao =
+  | "pre_marco"             // marco inicial ainda não configurado
+  | "suspensao_art40_p2"    // dentro do 1 ano do art. 40 §2º
+  | "prescricao_em_curso"   // nos 5 anos do art. 40 §4º
+  | "prescrita"             // prazo quinquenal vencido
+  | "parcelamento_ativo"    // exigibilidade suspensa (art. 151 VI CTN)
+  | "indefinida";
+
+export type StatusFinal =
+  | "ativa"                       // processo em curso
+  | "extinta"                     // extinção por pagamento/desistência/etc.
+  | "prescricao_ja_reconhecida";  // sentença do art. 40 §4º já prolatada
+
 export interface EventoProcessual {
   id: string;
   data: Date | null;
@@ -67,6 +80,8 @@ export interface Processo {
 export interface AnalisePrescricao {
   processoId: string;
   score: ScorePrescricao;
+  fase: FasePrescricao;
+  statusFinal: StatusFinal;
   confiancaGeral: number;
   marcoInicial: EventoProcessual | null;
   marcoInicialData: Date | null;
@@ -75,9 +90,13 @@ export interface AnalisePrescricao {
   diasSemAtoUtil: number | null;
   diasTotaisContagem: number;
   prazoNecessario: number;
+  dataProvavelPrescricao: Date | null;
+  diasAteProvavelPrescricao: number | null;
   interrupcoes: EventoProcessual[];
-  suspensoesEspeciais: { inicio: Date; fim: Date }[];
+  atosInuteisIgnorados: EventoProcessual[];
+  suspensoesEspeciais: { inicio: Date; fim: Date; motivo: string }[];
   pontosIncerteza: string[];
+  fundamentosJuridicos: string[];
   explicacaoTextual: string;
   viaSugerida: string;
 }

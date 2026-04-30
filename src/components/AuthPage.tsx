@@ -231,7 +231,7 @@ export function AuthPage({ mode = "login", onSuccess, onBack }: AuthPageProps) {
               </form>
 
               <OAuthDivider />
-              <GoogleButton onClick={handleGoogleLogin} />
+              <GoogleButton onClick={handleGoogleLogin} label="Entrar com Google" />
             </>
           ) : (
             <>
@@ -309,6 +309,9 @@ export function AuthPage({ mode = "login", onSuccess, onBack }: AuthPageProps) {
                   <span className="cursor-pointer text-foreground/70 hover:text-foreground">Política de Privacidade</span>.
                 </p>
               </form>
+
+              <OAuthDivider />
+              <GoogleButton onClick={handleGoogleLogin} label="Cadastrar com Google" />
             </>
           )}
         </div>
@@ -388,7 +391,7 @@ function OAuthDivider() {
   );
 }
 
-function GoogleButton({ onClick }: { onClick: () => void }) {
+function GoogleButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button
       type="button"
@@ -401,7 +404,7 @@ function GoogleButton({ onClick }: { onClick: () => void }) {
         <path fill="#FBBC05" d="M4.49 10.74A4.8 4.8 0 0 1 4.24 9c0-.61.1-1.2.25-1.74V5.19H1.82A8 8 0 0 0 .98 9c0 1.29.31 2.5.84 3.57l2.67-1.83Z" />
         <path fill="#EA4335" d="M8.98 4.24c1.17 0 2.22.4 3.05 1.2l2.28-2.28A8 8 0 0 0 8.98 1 8 8 0 0 0 1.82 5.19L4.49 7.26A4.78 4.78 0 0 1 8.98 4.24Z" />
       </svg>
-      Entrar com Google
+      {label}
     </button>
   );
 }

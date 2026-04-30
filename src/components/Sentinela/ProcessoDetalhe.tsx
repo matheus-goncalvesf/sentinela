@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Copy, ArrowLeft, AlertTriangle } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, ArrowLeft, AlertTriangle, FileDown } from "lucide-react";
+import { exportarRelatorioPDF } from "../../features/sentinela/pdfExport";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
@@ -49,12 +50,21 @@ export function ProcessoDetalhe({ processo, analise, onVoltar }: ProcessoDetalhe
           <ArrowLeft className="h-4 w-4" />
           Voltar
         </Button>
-        <div>
+        <div className="flex-1">
           <h2 className="text-base font-semibold text-foreground">{processo.numeroCnj}</h2>
           <p className="text-xs text-muted-foreground">
             {processo.tribunal}{processo.vara ? ` · ${processo.vara}` : ""}
           </p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => exportarRelatorioPDF(processo, analise)}
+          className="gap-1.5 text-xs"
+        >
+          <FileDown className="h-3.5 w-3.5" />
+          Exportar PDF
+        </Button>
       </div>
 
       {/* Score card */}

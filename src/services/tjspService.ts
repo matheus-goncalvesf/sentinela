@@ -57,33 +57,68 @@ function extrairParam(href: string, param: string): string {
 }
 
 /**
+ * Aguarda `ms` milissegundos.
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 1000;
+
+/**
  * Faz fetch de uma URL do TJSP e retorna o documento HTML parseado.
- * Lança erro descritivo em caso de falha de rede ou status não-OK.
+ * Implementa retry com exponential backoff (3 tentativas, 1s/2s/4s).
+ * Lança erro descritivo em caso de falha persistente.
  */
 async function fetchHtmlTjsp(url: string): Promise<Document> {
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      headers: { Accept: "text/html,application/xhtml+xml" },
-    });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Falha de rede ao consultar o TJSP: ${msg}`);
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+      console.info(`[tjspService] Retry ${attempt}/${MAX_RETRIES - 1} em ${delay}ms...`);
+      await sleep(delay);
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: { Accept: "text/html,application/xhtml+xml" },
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      lastError = new Error(`Falha de rede ao consultar o TJSP: ${msg}`);
+      continue; // Retry on network error
+    }
+
+    // Don't retry on client errors (4xx) — they won't resolve with retries
+    if (response.status >= 400 && response.status < 500) {
+      throw new Error(
+        `TJSP retornou status ${response.status}. Verifique os parâmetros da consulta.`
+      );
+    }
+
+    // Retry on server errors (5xx)
+    if (!response.ok) {
+      lastError = new Error(
+        `TJSP retornou status ${response.status}. Tente novamente em instantes.`
+      );
+      continue;
+    }
+
+    const html = await response.text();
+    if (!html || html.trim().length === 0) {
+      lastError = new Error("TJSP retornou uma resposta vazia. Tente novamente.");
+      continue; // Retry on empty response
+    }
+
+    const parser = new DOMParser();
+    return parser.parseFromString(html, "text/html");
   }
 
-  if (!response.ok) {
-    throw new Error(
-      `TJSP retornou status ${response.status}. Tente novamente em instantes.`
-    );
-  }
-
-  const html = await response.text();
-  if (!html || html.trim().length === 0) {
-    throw new Error("TJSP retornou uma resposta vazia. Tente novamente.");
-  }
-
-  const parser = new DOMParser();
-  return parser.parseFromString(html, "text/html");
+  // All retries exhausted
+  throw lastError ?? new Error("Falha ao consultar o TJSP após múltiplas tentativas.");
 }
 
 /** Verifica se o documento é uma página de erro ou de acesso negado do TJSP. */
