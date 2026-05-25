@@ -7,6 +7,7 @@ import { supabase } from "./lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { ProcessosPage } from "./components/Sentinela/ProcessosPage";
 import { ConfiguracoesPage } from "./components/Sentinela/ConfiguracoesPage";
+import { limparEstadoDashboard } from "./features/sentinela/storageService";
 
 type View = "landing" | "login" | "signup" | "app" | "admin";
 
@@ -395,7 +396,7 @@ function AppShell({
         {/* Import button — only on app view */}
         {!collapsed && activeView === "app" && (
           <div className="border-b border-border p-3">
-            <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary/25 px-3 py-2 text-xs font-semibold text-primary transition-all hover:bg-primary/10">
+            <button onClick={() => { onNavChange?.("dashboard"); }} className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary/25 px-3 py-2 text-xs font-semibold text-primary transition-all hover:bg-primary/10">
               <Upload className="h-3.5 w-3.5" />
               Importar CNPJs
             </button>
@@ -506,6 +507,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [activeNav, setActiveNav] = useState("dashboard");
+  const [dashboardKey, setDashboardKey] = useState(0);
   const [debugLog, setDebugLog] = useState<string>("");
 
   useEffect(() => {
@@ -527,7 +529,7 @@ export default function App() {
       setDebugLog(prev => prev + `[getSession] Error: ${error?.message || "none"}, SessionUser: ${session?.user?.email || "none"}\n`);
       if (session?.user) {
         setUser(session.user);
-        setView(isAdminUser(session.user) ? "admin" : "app");
+        setView("app");
       }
       setLoadingAuth(false);
     });
@@ -536,7 +538,7 @@ export default function App() {
       setDebugLog(prev => prev + `[AuthEvent] Event: ${_event}, SessionUser: ${session?.user?.email || "none"}\n`);
       if (session?.user) {
         setUser(session.user);
-        setView(isAdminUser(session.user) ? "admin" : "app");
+        setView("app");
       } else {
         setUser(null);
         setView("landing");
@@ -613,9 +615,15 @@ export default function App() {
       onGoAdmin={() => setView("admin")}
       onGoApp={() => setView("app")}
       activeNav={activeNav}
-      onNavChange={setActiveNav}
+      onNavChange={(nav) => {
+        setActiveNav(nav);
+        if (nav === "dashboard") {
+          limparEstadoDashboard();
+          setDashboardKey(n => n + 1);
+        }
+      }}
     >
-      {activeNav === "dashboard" && <SentinelaDashboard />}
+      {activeNav === "dashboard" && <SentinelaDashboard key={dashboardKey} />}
       {activeNav === "processos" && <ProcessosPage />}
       {activeNav === "configuracoes" && <ConfiguracoesPage user={user} />}
     </AppShell>
