@@ -1,4 +1,4 @@
-import puppeteer, { Browser, Page } from "puppeteer";
+import puppeteer, { Browser, Page } from "puppeteer-core";
 import { TRF_CONFIG, ProcessoPJe, AndamentoPJe } from "./types";
 
 const CHROMIUM_PATH = process.env.CHROMIUM_PATH;
