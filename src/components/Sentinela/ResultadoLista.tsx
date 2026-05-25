@@ -12,7 +12,7 @@ interface ResultadoListaProps {
   processos: Processo[];
   analises: AnalisePrescricao[];
   onSelectProcesso: (processoId: string) => void;
-  onNovaImportacao: () => void;
+  onNovaImportacao?: () => void;
 }
 
 const SCORE_ORDER: Record<ScorePrescricao, number> = {
@@ -223,9 +223,11 @@ export function ResultadoLista({ processos, analises, onSelectProcesso, onNovaIm
             Limpar filtros
           </Button>
         )}
-        <Button variant="outline" size="sm" onClick={onNovaImportacao}>
-          Nova importação
-        </Button>
+        {onNovaImportacao && (
+          <Button variant="outline" size="sm" onClick={onNovaImportacao}>
+            Nova importação
+          </Button>
+        )}
       </div>
 
       {/* Visualização por CNPJ */}

@@ -5,6 +5,8 @@ import { AuthPage } from "./components/AuthPage";
 import { AdminPanel } from "./components/AdminPanel";
 import { supabase } from "./lib/supabase";
 import type { User } from "@supabase/supabase-js";
+import { ProcessosPage } from "./components/Sentinela/ProcessosPage";
+import { ConfiguracoesPage } from "./components/Sentinela/ConfiguracoesPage";
 
 type View = "landing" | "login" | "signup" | "app" | "admin";
 
@@ -337,6 +339,7 @@ function LandingPage({ onEntrar, onSignup }: { onEntrar: () => void; onSignup?: 
 
 function AppShell({
   children, onLogout, user, isAdmin = false, activeView = "app", onGoAdmin, onGoApp,
+  activeNav, onNavChange
 }: {
   children: React.ReactNode;
   onLogout: () => void;
@@ -345,9 +348,10 @@ function AppShell({
   activeView?: "app" | "admin";
   onGoAdmin?: () => void;
   onGoApp?: () => void;
+  activeNav?: string;
+  onNavChange?: (nav: string) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [activeNav, setActiveNav] = useState("dashboard");
 
   const userInitial = user?.email?.[0]?.toUpperCase() ?? "U";
   const userName = (user?.user_metadata?.full_name as string) || user?.email?.split("@")[0] || "Usuário";
@@ -404,7 +408,7 @@ function AppShell({
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => { setActiveNav(item.id); if (activeView === "admin") onGoApp?.(); }}
+              onClick={() => { onNavChange?.(item.id); if (activeView === "admin") onGoApp?.(); }}
               className={`nav-btn ${activeView === "app" && activeNav === item.id ? "active" : ""} flex items-center gap-3 overflow-hidden rounded-lg border-none bg-transparent px-2.5 py-2.5 text-sm font-medium text-muted-foreground`}
               style={{ justifyContent: collapsed ? "center" : "flex-start", whiteSpace: "nowrap" }}
             >
@@ -501,9 +505,26 @@ export default function App() {
   const [view, setView] = useState<View>("landing");
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [activeNav, setActiveNav] = useState("dashboard");
+  const [debugLog, setDebugLog] = useState<string>("");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Debugging auth flow
+    setDebugLog(prev => prev + `[Init] URL: ${window.location.href}\n`);
+    
+    // Capturar erros da URL (tanto hash quanto query string)
+    const urlParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace("#", "?"));
+    
+    const errorDesc = urlParams.get("error_description") || urlParams.get("error") || 
+                      hashParams.get("error_description") || hashParams.get("error");
+                      
+    if (errorDesc) {
+      alert("Erro de Autenticação (Google/Supabase): " + decodeURIComponent(errorDesc).replace(/\+/g, " "));
+    }
+
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      setDebugLog(prev => prev + `[getSession] Error: ${error?.message || "none"}, SessionUser: ${session?.user?.email || "none"}\n`);
       if (session?.user) {
         setUser(session.user);
         setView(isAdminUser(session.user) ? "admin" : "app");
@@ -512,6 +533,7 @@ export default function App() {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setDebugLog(prev => prev + `[AuthEvent] Event: ${_event}, SessionUser: ${session?.user?.email || "none"}\n`);
       if (session?.user) {
         setUser(session.user);
         setView(isAdminUser(session.user) ? "admin" : "app");
@@ -540,20 +562,30 @@ export default function App() {
 
   if (view === "landing") {
     return (
-      <LandingPage
-        onEntrar={() => setView("login")}
-        onSignup={() => setView("signup")}
-      />
+      <>
+        <div className="fixed top-0 left-0 z-50 bg-black/80 text-green-400 p-4 m-4 rounded font-mono text-xs w-96 pointer-events-none whitespace-pre-wrap">
+          {debugLog}
+        </div>
+        <LandingPage
+          onEntrar={() => setView("login")}
+          onSignup={() => setView("signup")}
+        />
+      </>
     );
   }
 
   if (view === "login" || view === "signup") {
     return (
-      <AuthPage
-        mode={view}
-        onSuccess={() => {/* onAuthStateChange handles it */}}
-        onBack={() => setView("landing")}
-      />
+      <>
+        <div className="fixed top-0 left-0 z-50 bg-black/80 text-green-400 p-4 m-4 rounded font-mono text-xs w-96 pointer-events-none whitespace-pre-wrap">
+          {debugLog}
+        </div>
+        <AuthPage
+          mode={view}
+          onSuccess={() => {/* onAuthStateChange handles it */}}
+          onBack={() => setView("landing")}
+        />
+      </>
     );
   }
 
@@ -580,8 +612,12 @@ export default function App() {
       activeView="app"
       onGoAdmin={() => setView("admin")}
       onGoApp={() => setView("app")}
+      activeNav={activeNav}
+      onNavChange={setActiveNav}
     >
-      <SentinelaDashboard />
+      {activeNav === "dashboard" && <SentinelaDashboard />}
+      {activeNav === "processos" && <ProcessosPage />}
+      {activeNav === "configuracoes" && <ConfiguracoesPage user={user} />}
     </AppShell>
   );
 }

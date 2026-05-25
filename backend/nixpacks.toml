@@ -1,0 +1,13 @@
+[phases.setup]
+nixPkgs = ["chromium", "chromium-sandbox", "libxkbcommon", "libxdamage", "libxrandr", "libgbm", "libcairo", "pango", "cups", "dbus", "nspr", "nss", "atk", "at-spi2-atk", "drm"]
+aptPkgs = ["chromium", "libnss3", "libnspr4", "libatk1.0-0t64", "libatk-bridge2.0-0t64", "libcups2t64", "libdrm2", "libdbus-1-3", "libxkbcommon0", "libxcomposite1", "libxdamage1", "libxrandr2", "libgbm1", "libpango-1.0-0", "libcairo2", "libasound2t64"]
+
+[phases.build]
+cmds = ["npm install --include=dev", "npx tsc"]
+
+[deploy]
+startCmd = "node dist/index.js"
+
+[variables]
+CHROMIUM_PATH = "/usr/lib/chromium-browser/chromium-browser"
+PUPPETEER_SKIP_DOWNLOAD = "true"

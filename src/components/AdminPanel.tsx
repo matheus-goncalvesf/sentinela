@@ -15,6 +15,7 @@ interface Profile {
   is_admin: boolean;
   created_at: string;
   last_sign_in: string | null;
+  account_action: string | null;
 }
 
 type AdminTab = "overview" | "users" | "settings";
@@ -177,7 +178,11 @@ export function AdminPanel() {
                       {(p.full_name ?? p.email)[0].toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="truncate text-sm font-medium text-foreground">{p.full_name ?? p.email.split("@")[0]}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-medium text-foreground">{p.full_name ?? p.email.split("@")[0]}</span>
+                        {p.account_action === 'delete_account' && <AlertTriangle size={12} className="text-red-500" title="Solicitou exclusão" />}
+                        {p.account_action === 'cancel_plan' && <AlertTriangle size={12} className="text-amber-500" title="Solicitou cancelamento" />}
+                      </div>
                       <div className="truncate text-xs text-muted-foreground">{p.email}</div>
                     </div>
                     <PlanBadge plan={p.plan} />
@@ -239,7 +244,11 @@ export function AdminPanel() {
                             {(p.full_name ?? p.email)[0].toUpperCase()}
                           </div>
                           <div>
-                            <div className="font-medium text-foreground">{p.full_name ?? p.email.split("@")[0]}</div>
+                            <div className="font-medium text-foreground flex items-center gap-2">
+                              {p.full_name ?? p.email.split("@")[0]}
+                              {p.account_action === 'delete_account' && <span className="rounded bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold text-red-500">EXCLUIR</span>}
+                              {p.account_action === 'cancel_plan' && <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-500">CANCELAR</span>}
+                            </div>
                             <div className="text-xs text-muted-foreground">{p.email}</div>
                           </div>
                         </div>
@@ -422,8 +431,11 @@ create table if not exists public.profiles (
   plan text default 'free',
   is_admin boolean default false,
   created_at timestamptz default now(),
-  last_sign_in timestamptz
+  last_sign_in timestamptz,
+  account_action text
 );
+
+-- (Se a tabela já existir, rode: ALTER TABLE public.profiles ADD COLUMN account_action text;)
 
 -- 2. RLS: somente admin lê todos; usuário lê o próprio
 alter table public.profiles enable row level security;
