@@ -16,7 +16,7 @@ const TRF_POR_UF: Record<string, { sigla: string; nome: string; url: string }> =
   GO: { sigla: "TRF1", nome: "TRF 1ª Região (AC, AP, AM, BA, DF, GO, MA, MT, PA, PI, RO, RR, TO)", url: "https://pje1g.trf1.jus.br/pje/ConsultaPublica/listView.seam" },
   MA: { sigla: "TRF1", nome: "TRF 1ª Região (AC, AP, AM, BA, DF, GO, MA, MT, PA, PI, RO, RR, TO)", url: "https://pje1g.trf1.jus.br/pje/ConsultaPublica/listView.seam" },
   MG: { sigla: "TRF1", nome: "TRF 1ª Região (AC, AP, AM, BA, DF, GO, MA, MT, PA, PI, RO, RR, TO)", url: "https://pje1g.trf1.jus.br/pje/ConsultaPublica/listView.seam" },
-  MS: { sigla: "TRF3", nome: "TRF 3ª Região (MS, SP)", url: "https://pje2g.trf3.jus.br/pje/ConsultaPublica/listView.seam" },
+  MS: { sigla: "TRF3", nome: "TRF 3ª Região (MS, SP)", url: "https://pje1g.trf3.jus.br/pje/ConsultaPublica/listView.seam" },
   MT: { sigla: "TRF1", nome: "TRF 1ª Região (AC, AP, AM, BA, DF, GO, MA, MT, PA, PI, RO, RR, TO)", url: "https://pje1g.trf1.jus.br/pje/ConsultaPublica/listView.seam" },
   PA: { sigla: "TRF1", nome: "TRF 1ª Região (AC, AP, AM, BA, DF, GO, MA, MT, PA, PI, RO, RR, TO)", url: "https://pje1g.trf1.jus.br/pje/ConsultaPublica/listView.seam" },
   PB: { sigla: "TRF5", nome: "TRF 5ª Região (AL, CE, PB, PE, RN, SE)", url: "https://pje.trf5.jus.br/pje/ConsultaPublica/listView.seam" },
@@ -30,7 +30,7 @@ const TRF_POR_UF: Record<string, { sigla: string; nome: string; url: string }> =
   RS: { sigla: "TRF4", nome: "TRF 4ª Região (PR, RS, SC)", url: "https://pje.trf4.jus.br/pje/ConsultaPublica/listView.seam" },
   SC: { sigla: "TRF4", nome: "TRF 4ª Região (PR, RS, SC)", url: "https://pje.trf4.jus.br/pje/ConsultaPublica/listView.seam" },
   SE: { sigla: "TRF5", nome: "TRF 5ª Região (AL, CE, PB, PE, RN, SE)", url: "https://pje.trf5.jus.br/pje/ConsultaPublica/listView.seam" },
-  SP: { sigla: "TRF3", nome: "TRF 3ª Região (MS, SP)", url: "https://pje2g.trf3.jus.br/pje/ConsultaPublica/listView.seam" },
+  SP: { sigla: "TRF3", nome: "TRF 3ª Região (MS, SP)", url: "https://pje1g.trf3.jus.br/pje/ConsultaPublica/listView.seam" },
   TO: { sigla: "TRF1", nome: "TRF 1ª Região (AC, AP, AM, BA, DF, GO, MA, MT, PA, PI, RO, RR, TO)", url: "https://pje1g.trf1.jus.br/pje/ConsultaPublica/listView.seam" },
 };
 

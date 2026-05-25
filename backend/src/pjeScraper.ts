@@ -117,21 +117,28 @@ export async function consultarPorCnpj(cnpj: string, tribunal: string = "TRF3"):
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     );
 
-    console.log(`[PJeScraper] Acessando ${config.url}`);
-    await page.goto(config.url, { waitUntil: "networkidle2", timeout: 30000 });
-    await aguardar(2000);
+    const urlBusca = `${config.url}?codigoParte=${cnpj}`;
+    console.log(`[PJeScraper] Acessando ${urlBusca}`);
+    await page.goto(urlBusca, { waitUntil: "networkidle2", timeout: 30000 });
+    await aguardar(3000);
 
-    // Preenche o campo de busca
+    // Tenta preencher o campo de busca (caso a URL não tenha preenchido automaticamente)
     const input = await encontrarElemento(page, SELETORES.inputBusca);
     if (!input) {
       // Fallback: tenta encontrar qualquer input de texto visível
       const inputs = await page.$$("input[type='text']");
       if (inputs.length === 0) throw new Error("Campo de busca não encontrado no PJe");
-      await inputs[0].click();
-      await inputs[0].type(cnpj, { delay: 50 });
+      const valorAtual = await page.evaluate(el => (el as HTMLInputElement).value, inputs[0]);
+      if (valorAtual !== cnpj) {
+        await inputs[0].click({ clickCount: 3 });
+        await inputs[0].type(cnpj, { delay: 30 });
+      }
     } else {
-      await input.el.click();
-      await input.el.type(cnpj, { delay: 50 });
+      const valorAtual = await page.evaluate(el => (el as HTMLInputElement).value, input.el);
+      if (valorAtual !== cnpj) {
+        await input.el.click({ clickCount: 3 });
+        await input.el.type(cnpj, { delay: 30 });
+      }
     }
 
     console.log(`[PJeScraper] CNPJ digitado: ${cnpj}`);
@@ -145,20 +152,35 @@ export async function consultarPorCnpj(cnpj: string, tribunal: string = "TRF3"):
       await page.keyboard.press("Enter");
     }
 
-    // Aguarda resultados
+    // Aguarda resultados (tenta submit do form também)
     await aguardar(3000);
     try {
-      await page.waitForSelector("table", { timeout: 10000 });
+      await page.waitForSelector("table, .rich-table, [class*='resultado']", { timeout: 12000 });
     } catch {
-      // Tabela pode não aparecer se não houver resultados
+      // Tenta submeter o formulário diretamente (alguns PJe usam JSF)
+      try {
+        await page.evaluate(() => {
+          const form = document.querySelector("form");
+          if (form) {
+            const btn = form.querySelector("input[type='submit'], button[type='submit']");
+            if (btn) (btn as HTMLButtonElement).click();
+          }
+        });
+        await aguardar(3000);
+      } catch {}
     }
 
-    await aguardar(1000);
+    await aguardar(2000);
 
     // Extrai processos da tabela
     const linhas = await encontrarElemento(page, SELETORES.linhaProcesso);
     if (!linhas) {
-      console.log("[PJeScraper] Nenhum processo encontrado na tabela");
+      // Tenta extrair via evaluate (captura qualquer tabela)
+      const tabelas = await page.evaluate(() => {
+        const rows = Array.from(document.querySelectorAll("table tr"));
+        return rows.slice(0, 5).map(r => r.textContent?.trim() || "");
+      });
+      console.log("[PJeScraper] Nenhum processo encontrado na tabela. Conteúdo:", tabelas);
       return [];
     }
 
