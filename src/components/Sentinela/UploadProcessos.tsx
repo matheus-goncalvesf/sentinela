@@ -1,13 +1,14 @@
 import { useRef, useState } from "react";
-import { Upload, AlertTriangle, CheckCircle2, FileText, Table2, Users } from "lucide-react";
+import { Upload, AlertTriangle, CheckCircle2, FileText, Table2, Users, Globe } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { parseSentinelaCSV } from "../../features/sentinela/csvParser";
 import { processarEventos, analisarPrescricao } from "../../features/sentinela/motorPrescricao";
 import type { AnalisePrescricao, Processo } from "../../features/sentinela/types";
 import { UploadCnpjs } from "./UploadCnpjs";
+import { UploadCnpjsFederal } from "./UploadCnpjsFederal";
 
-type SubModo = "csv-completo" | "csv-cnpjs";
+type SubModo = "csv-completo" | "csv-cnpjs" | "pje-federal";
 
 interface UploadProcessosProps {
   onProcessosImportados: (processos: Processo[], analises: AnalisePrescricao[]) => void;
@@ -40,8 +41,8 @@ export function UploadProcessos({ onProcessosImportados }: UploadProcessosProps)
     setError(null);
     setAvisos([]);
     setPreview(null);
-    if (!file.name.toLowerCase().endsWith(".csv")) {
-      setError("Arquivo inválido. Selecione um arquivo .csv");
+    if (!file.name.toLowerCase().endsWith(".csv") && !file.name.toLowerCase().endsWith(".txt")) {
+      setError("Arquivo inválido. Selecione um arquivo .csv ou .txt");
       return;
     }
     setIsProcessing(true);
@@ -126,13 +127,28 @@ export function UploadProcessos({ onProcessosImportados }: UploadProcessosProps)
           <Users className="h-4 w-4" />
           CSV de CNPJs - scraping automático
         </button>
-      </div>
+        <button
+          onClick={() => handleSubModoChange("pje-federal")}
+          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+            subModo === "pje-federal"
+              ? "bg-primary text-white shadow-sm"
+              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+          }`}
+        >
+          <Globe className="h-4 w-4" />
+          PJe Federal (backend Puppeteer)
+        </button>
+        </div>
 
-      {subModo === "csv-cnpjs" && (
-        <UploadCnpjs onProcessosImportados={onProcessosImportados} />
-      )}
+{subModo === "csv-cnpjs" && (
+         <UploadCnpjs onProcessosImportados={onProcessosImportados} />
+       )}
 
-      {subModo === "csv-completo" && (
+{subModo === "pje-federal" && (
+         <UploadCnpjsFederal onProcessosImportados={onProcessosImportados} />
+       )}
+
+        {subModo === "csv-completo" && (
         <>
           {!preview && (
             <div
@@ -146,12 +162,12 @@ export function UploadProcessos({ onProcessosImportados }: UploadProcessosProps)
                   : "border-border bg-secondary hover:border-primary/40 hover:bg-secondary"
               }`}
             >
-              <input ref={inputRef} type="file" accept=".csv" onChange={handleInputChange} className="hidden" />
+              <input ref={inputRef} type="file" accept=".csv,.txt" onChange={handleInputChange} className="hidden" />
               <Upload className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
               <p className="text-sm font-medium text-foreground">
-                Arraste um arquivo CSV ou <span className="text-primary">clique para selecionar</span>
+                Arraste um arquivo CSV ou TXT ou <span className="text-primary">clique para selecionar</span>
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">Apenas arquivos .csv - UTF-8 ou Latin-1</p>
+              <p className="mt-1 text-xs text-muted-foreground">Arquivos .csv ou .txt - UTF-8 ou Latin-1</p>
             </div>
           )}
 

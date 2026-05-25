@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Layers, Search, Clock, Trash2, ChevronRight } from "lucide-react";
 import type { AnalisePrescricao, Processo } from "../../features/sentinela/types";
 import {
@@ -6,6 +6,9 @@ import {
   salvarNoHistorico,
   removerDoHistorico,
   limparHistorico,
+  salvarEstadoDashboard,
+  carregarEstadoDashboard,
+  limparEstadoDashboard,
   type HistoricoEntry,
 } from "../../features/sentinela/storageService";
 import { SCORE_COLORS } from "../../features/sentinela/constants";
@@ -26,11 +29,28 @@ export function SentinelaDashboard() {
   const [analises, setAnalises] = useState<AnalisePrescricao[]>([]);
   const [processoSelecionado, setProcessoSelecionado] = useState<string | null>(null);
   const [historico, setHistorico] = useState<HistoricoEntry[]>([]);
+  const restored = useRef(false);
 
-  // Load history on mount
+  // Restore saved state on mount
   useEffect(() => {
+    const saved = carregarEstadoDashboard();
+    if (saved && saved.processos.length > 0) {
+      setProcessos(saved.processos);
+      setAnalises(saved.analises);
+      setModo(saved.modo);
+      if (saved.modo === "lote") setEtapaLote(saved.etapa as EtapaLote);
+      else setEtapaUnitario(saved.etapa as EtapaUnitario);
+    }
+    restored.current = true;
     setHistorico(carregarHistorico());
   }, []);
+
+  // Save state whenever it changes
+  useEffect(() => {
+    if (!restored.current) return;
+    const etapa = modo === "lote" ? etapaLote : etapaUnitario;
+    salvarEstadoDashboard({ processos, analises, modo, etapa, timestamp: Date.now() });
+  }, [processos, analises, modo, etapaLote, etapaUnitario]);
 
   function refreshHistorico() {
     setHistorico(carregarHistorico());
@@ -38,6 +58,7 @@ export function SentinelaDashboard() {
 
   function handleModoChange(novoModo: ModoSentinela) {
     if (novoModo === modo) return;
+    limparEstadoDashboard();
     setModo(novoModo);
     setEtapaLote("upload");
     setEtapaUnitario("input");
@@ -63,6 +84,7 @@ export function SentinelaDashboard() {
   }
 
   function handleCarregarHistorico(entry: HistoricoEntry) {
+    limparEstadoDashboard();
     setProcessos(entry.processos);
     setAnalises(entry.analises);
     setModo("lote");
@@ -101,7 +123,7 @@ export function SentinelaDashboard() {
           processos={processos}
           analises={analises}
           onSelectProcesso={(id) => { setProcessoSelecionado(id); setEtapaLote("detalhe"); }}
-          onNovaImportacao={() => { setEtapaLote("upload"); setProcessos([]); setAnalises([]); }}
+          onNovaImportacao={() => { limparEstadoDashboard(); setEtapaLote("upload"); setProcessos([]); setAnalises([]); }}
         />
       );
       if (etapaLote === "detalhe" && processoAtual && analiseAtual) return (
@@ -115,7 +137,7 @@ export function SentinelaDashboard() {
         <ProcessoDetalhe
           processo={processoAtual}
           analise={analiseAtual}
-          onVoltar={() => { setEtapaUnitario("input"); setProcessos([]); setAnalises([]); }}
+          onVoltar={() => { limparEstadoDashboard(); setEtapaUnitario("input"); setProcessos([]); setAnalises([]); }}
         />
       );
       if (etapaUnitario === "resultado" && processos.length > 1) return (
@@ -123,7 +145,7 @@ export function SentinelaDashboard() {
           processos={processos}
           analises={analises}
           onSelectProcesso={(id) => { setProcessoSelecionado(id); setEtapaUnitario("detalhe"); }}
-          onNovaImportacao={() => { setEtapaUnitario("input"); setProcessos([]); setAnalises([]); }}
+          onNovaImportacao={() => { limparEstadoDashboard(); setEtapaUnitario("input"); setProcessos([]); setAnalises([]); }}
         />
       );
       if (etapaUnitario === "detalhe" && processoAtual && analiseAtual) return (

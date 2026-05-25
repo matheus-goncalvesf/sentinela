@@ -180,8 +180,8 @@ export function AdminPanel() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="truncate text-sm font-medium text-foreground">{p.full_name ?? p.email.split("@")[0]}</span>
-                        {p.account_action === 'delete_account' && <AlertTriangle size={12} className="text-red-500" title="Solicitou exclusão" />}
-                        {p.account_action === 'cancel_plan' && <AlertTriangle size={12} className="text-amber-500" title="Solicitou cancelamento" />}
+                        {p.account_action === 'delete_account' && <AlertTriangle size={12} className="text-red-500" aria-label="Solicitou exclusão" />}
+                        {p.account_action === 'cancel_plan' && <AlertTriangle size={12} className="text-amber-500" aria-label="Solicitou cancelamento" />}
                       </div>
                       <div className="truncate text-xs text-muted-foreground">{p.email}</div>
                     </div>

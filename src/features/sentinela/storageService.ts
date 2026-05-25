@@ -165,6 +165,44 @@ export function limparHistorico(): void {
 }
 
 /**
+ * ══════════════════════════════════════════════════════════════════════════════
+ * Persistência de estado da sessão atual (Dashboard)
+ * ══════════════════════════════════════════════════════════════════════════════
+ */
+const STATE_KEY = "sentinela:estado_atual";
+
+export interface DashboardState {
+  processos: Processo[];
+  analises: AnalisePrescricao[];
+  modo: "lote" | "unitario";
+  etapa: string;
+  timestamp: number;
+}
+
+export function salvarEstadoDashboard(state: DashboardState): void {
+  try {
+    localStorage.setItem(STATE_KEY, serializeForStorage(state));
+  } catch {
+    // silent
+  }
+}
+
+export function carregarEstadoDashboard(): DashboardState | null {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return deserializeDates(parsed) as DashboardState;
+  } catch {
+    return null;
+  }
+}
+
+export function limparEstadoDashboard(): void {
+  localStorage.removeItem(STATE_KEY);
+}
+
+/**
  * Gera um label descritivo para a sessão.
  */
 function gerarLabel(processos: Processo[]): string {
