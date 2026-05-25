@@ -12,7 +12,12 @@ app.use(express.json());
 
 // Health check
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  const hasCaptchaKey = !!(process.env.CAPTCHA_API_KEY);
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    captcha: hasCaptchaKey ? "configurado" : "não configurado",
+  });
 });
 
 // Consulta PJe

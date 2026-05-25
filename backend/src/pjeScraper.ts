@@ -1,5 +1,6 @@
 import puppeteer, { Browser, Page } from "puppeteer-core";
 import { TRF_CONFIG, ProcessoPJe, AndamentoPJe } from "./types";
+import { resolverHCaptcha } from "./captchaSolver";
 
 const CHROMIUM_PATH = process.env.CHROMIUM_PATH;
 
@@ -143,6 +144,12 @@ export async function consultarPorCnpj(cnpj: string, tribunal: string = "TRF3"):
 
     console.log(`[PJeScraper] CNPJ digitado: ${cnpj}`);
 
+    // Verifica e resolve hCaptcha se presente
+    const captchaResolvido = await resolverCaptchaSeExistir(page);
+    if (!captchaResolvido) {
+      console.log("[PJeScraper] Nenhum captcha detectado, prosseguindo...");
+    }
+
     // Clica em buscar
     const botao = await encontrarElemento(page, SELETORES.botaoBuscar);
     if (botao) {
@@ -250,6 +257,63 @@ export async function consultarPorCnpj(cnpj: string, tribunal: string = "TRF3"):
     throw err;
   } finally {
     await browser.close();
+  }
+}
+
+/**
+ * Detecta e resolve hCaptcha na página, se presente.
+ */
+async function resolverCaptchaSeExistir(page: Page): Promise<boolean> {
+  try {
+    // Verifica se existe o container do hCaptcha
+    const temCaptcha = await page.$('.h-captcha, iframe[src*="hcaptcha"], div[data-sitekey]');
+    if (!temCaptcha) return false;
+
+    console.log("[PJeScraper] hCaptcha detectado, resolvendo...");
+
+    const siteKey = await page.evaluate(() => {
+      const el = document.querySelector('.h-captcha');
+      return el?.getAttribute('data-sitekey') || null;
+    });
+
+    if (!siteKey) {
+      console.log("[PJeScraper] Não foi possível extrair sitekey do captcha");
+      return false;
+    }
+
+    const resultado = await resolverHCaptcha(siteKey, page.url());
+
+    if (!resultado.success || !resultado.token) {
+      console.log(`[PJeScraper] Falha ao resolver captcha: ${resultado.error}`);
+      return false;
+    }
+
+    console.log("[PJeScraper] Captcha resolvido, injetando token...");
+
+    // Injeta o token na página
+    await page.evaluate((token: string) => {
+      // Define o token no textarea que o hCaptcha usa
+      const textarea = document.querySelector<HTMLTextAreaElement>('textarea[name="h-captcha-response"]');
+      if (textarea) {
+        textarea.value = token;
+      }
+      // Tenta acionar o callback do hCaptcha via eventos
+      const el = document.querySelector('.h-captcha');
+      if (el) {
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      // Se o hCaptcha expõe o callback global
+      if (typeof (window as any).hcaptcha?.setResponse === 'function') {
+        (window as any).hcaptcha.setResponse(token);
+      }
+    }, resultado.token);
+
+    await aguardar(1000);
+    return true;
+  } catch (err) {
+    console.log(`[PJeScraper] Erro ao resolver captcha: ${err}`);
+    return false;
   }
 }
 
