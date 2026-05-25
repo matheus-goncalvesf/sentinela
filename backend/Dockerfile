@@ -24,10 +24,9 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --include=dev
+RUN npm install --include=dev && npm cache clean --force
 
 COPY . .
-RUN npx tsc
 
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV CHROMIUM_PATH=/usr/bin/chromium
@@ -35,4 +34,4 @@ ENV PORT=3001
 
 EXPOSE 3001
 
-CMD ["node", "dist/index.js"]
+CMD ["npx", "tsx", "src/index.ts"]
