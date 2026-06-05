@@ -15,7 +15,13 @@ const cache = new Map<string, ClassificacaoLLM>();
 
 export function getBackendUrl(): string {
   try {
-    return localStorage.getItem(BACKEND_URL_KEY) || DEFAULT_BACKEND_URL;
+    const saved = localStorage.getItem(BACKEND_URL_KEY);
+    // Se estiver apontando para localhost, ignora e usa o default de produção
+    if (saved && saved.includes("localhost")) {
+      localStorage.removeItem(BACKEND_URL_KEY);
+      return DEFAULT_BACKEND_URL;
+    }
+    return saved || DEFAULT_BACKEND_URL;
   } catch {
     return DEFAULT_BACKEND_URL;
   }

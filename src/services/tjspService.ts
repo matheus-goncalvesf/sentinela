@@ -209,7 +209,7 @@ export async function buscarProcessosPorCnpj(
     let executado = "";
 
     // Tenta encontrar as partes varrendo labels e spans
-    const partyLabels = div.querySelectorAll<HTMLElement>("label, span, .tipoDeParticipacao, .tipoParticipacao");
+    const partyLabels = div.querySelectorAll<HTMLElement>("label, span, b, .tipoDeParticipacao, .tipoParticipacao");
     partyLabels.forEach((lbl) => {
       const text = lbl.textContent?.toLowerCase() || "";
       const isExeq = text.includes("exeq") || text.includes("autor") || text.includes("requerent");
@@ -217,32 +217,46 @@ export async function buscarProcessosPorCnpj(
 
       if (isExeq || isExec) {
         let val = "";
-        // 1. Tenta pegar texto após a label no mesmo pai
-        const pTxt = lbl.parentElement?.textContent || "";
-        const parts = pTxt.split(lbl.textContent || "");
-        if (parts.length > 1) val = limparTexto(parts[1].split("\n")[0]);
 
-        // 2. Tenta o próximo irmão
+        // 1. Tenta o próximo nó de texto ou irmão
+        const nextNode = lbl.nextSibling;
+        if (nextNode && nextNode.nodeType === Node.TEXT_NODE) {
+          val = limparTexto(nextNode.textContent);
+        }
+
         if (!val) {
           const next = lbl.nextElementSibling as HTMLElement;
           if (next) val = limparTexto(next.textContent?.split("\n")[0]);
         }
 
-        // 3. Tenta encontrar .nomeParte próximo
+        // 2. Se não achou, tenta pegar do parent ignorando o texto da própria label
         if (!val) {
-          const row = lbl.closest("div, tr, li");
-          const n = row?.querySelector(".nomeParte");
-          if (n) val = limparTexto(n.textContent);
+          const pTxt = lbl.parentElement?.textContent || "";
+          const parts = pTxt.split(lbl.textContent || "");
+          if (parts.length > 1) val = limparTexto(parts[1].split("\n")[0]);
         }
 
-        if (val) {
+        if (val && val.length > 3) {
           if (isExeq && !exequente) exequente = val;
           else if (isExec && !executado) executado = val;
         }
       }
     });
 
-    // Fallback absoluto: pega os dois primeiros elementos com classe nomeParte
+    // Fallback via Regex no HTML se ainda estiver vazio
+    if (!exequente || !executado) {
+      const html = div.innerHTML;
+      if (!exequente) {
+        const m = html.match(/(?:Exeqte|Exequente|Autor|Requerente)\s*[:\-]?\s*<[^>]+>([^<]+)/i);
+        if (m) exequente = limparTexto(m[1]);
+      }
+      if (!executado) {
+        const m = html.match(/(?:Exectdo|Executado|Requerido|Réu)\s*[:\-]?\s*<[^>]+>([^<]+)/i);
+        if (m) executado = limparTexto(m[1]);
+      }
+    }
+
+    // Fallback absoluto por posição
     if (!exequente || !executado) {
       const genericNames = Array.from(div.querySelectorAll(".nomeParte")).map(e => limparTexto(e.textContent?.split("\n")[0]));
       if (!exequente && genericNames[0]) exequente = genericNames[0];
@@ -256,8 +270,8 @@ export async function buscarProcessosPorCnpj(
 
     let comarca = "";
     let vara = "";
-    const sep = localInfo.includes("\u2013") ? "\u2013" : "-";
-    const parts = localInfo.split(sep);
+    // Aceita vários tipos de separadores (hífen, travessão, etc)
+    const parts = localInfo.split(/\s+[\u2013\-]\s+/);
     if (parts.length >= 2) {
       comarca = parts[0].trim();
       vara = parts[1].trim();
