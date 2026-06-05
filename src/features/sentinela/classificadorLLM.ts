@@ -1,4 +1,4 @@
-import type { CategoriaEvento, EventoProcessual, Processo } from "./types";
+import type { CategoriaEvento, Processo } from "./types";
 import { CATEGORIA_EFEITO_MAP } from "./constants";
 
 const DEFAULT_BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
