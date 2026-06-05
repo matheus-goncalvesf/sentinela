@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import axios from "axios";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3001", 10);
@@ -139,8 +140,6 @@ ${eventosStr}`;
     res.status(502).json({ error: "Erro na API do Gemini", details: errorMsg });
   }
 });
-
-import axios from "axios";
 
 app.get("/api/proxy-tjsp", async (req, res) => {
   const targetUrl = req.query.url as string;

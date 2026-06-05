@@ -4,6 +4,7 @@ import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { buscarProcessosPorCnpj, buscarAndamentos } from "../../services/tjspService";
 import { montarEAnalisarDoTjsp } from "../../features/sentinela/tjspUtils";
+import { getBackendUrl } from "../../features/sentinela/classificadorLLM";
 import type { AnalisePrescricao, Processo } from "../../features/sentinela/types";
 
 interface UploadCnpjsProps {
@@ -209,6 +210,7 @@ export function UploadCnpjs({ onProcessosImportados }: UploadCnpjsProps) {
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
           Importe um arquivo com CNPJs para scraping automático no TJSP.
+          <span className="ml-2 text-[10px] opacity-50">API: {getBackendUrl()}</span>
         </p>
         <div
           onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
