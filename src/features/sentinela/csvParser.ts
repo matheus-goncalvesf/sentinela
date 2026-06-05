@@ -30,15 +30,26 @@ function normalizeHeader(s: string): string {
     .trim();
 }
 
-/** Detecta o separador mais frequente nas primeiras 5 linhas de dados. */
+/** Detecta o separador mais frequente nas primeiras linhas, buscando consistência. */
 function detectSeparator(lines: string[]): string {
-  const sample = lines.slice(0, 6).join("\n");
-  const counts = {
-    ";": (sample.match(/;/g) ?? []).length,
-    ",": (sample.match(/,/g) ?? []).length,
-    "\t": (sample.match(/\t/g) ?? []).length,
-  };
-  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+  const separators = [";", ",", "\t"];
+  const sample = lines.slice(0, 10); // olha até 10 linhas
+
+  const scores = separators.map(sep => {
+    // Conta quantas vezes o separador aparece em cada linha
+    const counts = sample.map(line => (line.split(sep).length - 1));
+    // O score é a média de ocorrências, mas penalizamos se variar muito (baixa consistência)
+    const avg = counts.reduce((a, b) => a + b, 0) / counts.length;
+    if (avg < 1) return { sep, score: 0 };
+
+    // Calcula desvio padrão simples para verificar consistência
+    const variance = counts.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / counts.length;
+    const consistency = 1 / (1 + variance);
+
+    return { sep, score: avg * consistency };
+  });
+
+  return scores.sort((a, b) => b.score - a.score)[0].sep || ";";
 }
 
 /** Divide uma linha CSV respeitando aspas. */
@@ -238,16 +249,12 @@ export function parseSentinelaCSV(
 
   const avisos: string[] = [];
 
-  if (!("numeroCnj" in colMap)) {
+  if (!("numeroCnj" in colMap) || !("textoEvento" in colMap)) {
+    const colunasEncontradas = headerRaw.join(", ");
     throw new Error(
-      "Coluna com número do processo não encontrada. " +
-      "Use um dos nomes: numero_cnj, numero_processo, processo, cnj."
-    );
-  }
-  if (!("textoEvento" in colMap)) {
-    throw new Error(
-      "Coluna com texto do andamento não encontrada. " +
-      "Use um dos nomes: texto_movimento, texto_evento, andamento, movimentacao, descricao."
+      `Colunas essenciais não encontradas. \n` +
+      `Detectamos: [${colunasEncontradas}]. \n` +
+      `Certifique-se de que o CSV tem colunas para 'numero_cnj' e 'texto_evento'.`
     );
   }
 
