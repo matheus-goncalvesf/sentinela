@@ -75,16 +75,31 @@ const COLUMN_ALIASES: Record<string, string> = {
   numeroprocesso: "numeroCnj",
   processo: "numeroCnj",
   cnj: "numeroCnj",
+  numproc: "numeroCnj",
+  "numero": "numeroCnj",
+
   // Tribunal
   tribunal: "tribunal",
+  instancia: "tribunal",
+  orgao: "tribunal",
+
   // Vara
   vara: "vara",
+  juizo: "vara",
   varacomarca: "vara",
+  unidadejudiciaria: "vara",
+
   // Comarca
   comarca: "comarca",
+  cidade: "comarca",
+  foro: "comarca",
+
   // Classe
   classe: "classe",
   classeprocessual: "classe",
+  procedimento: "classe",
+  tipoacao: "classe",
+
   // Valor
   valor: "valorCausa",
   valorcausa: "valorCausa",
@@ -92,30 +107,55 @@ const COLUMN_ALIASES: Record<string, string> = {
   valordodebito: "valorCausa",
   valordaexecucao: "valorCausa",
   valorprincipal: "valorCausa",
-  valorr: "valorCausa",
+  valorr: "valorCausa", // De "Valor (R$)"
+  valordacausar: "valorCausa", // De "Valor da Causa (R$)"
+  valororiginal: "valorCausa",
+  valortotal: "valorCausa",
+  importancia: "valorCausa",
+  quantum: "valorCausa",
+
   // Data de distribuição
   datadistribuicao: "dataDistribuicao",
   dataajuizamento: "dataDistribuicao",
   distribuicao: "dataDistribuicao",
+  datainicial: "dataDistribuicao",
+  dataentrada: "dataDistribuicao",
+
   // Exequente
   exequente: "exequente",
   poloativo: "exequente",
   autor: "exequente",
+  credor: "exequente",
+  requerente: "exequente",
+  padv: "exequente",
+
   // Executado
   executado: "executado",
   executados: "executado",
+  executadosr: "executado", // De "Executado(s)"
   polopassivo: "executado",
   reu: "executado",
   partepassiva: "executado",
   devedor: "executado",
+  requerido: "executado",
+  padvpassivo: "executado",
+  executadodevedor: "executado",
+
   // CNPJ executado
   cnpj: "cnpjExecutado",
   cnpjexecutado: "cnpjExecutado",
+  cpfcnpj: "cnpjExecutado",
+  doc: "cnpjExecutado",
+  documento: "cnpjExecutado",
+
   // Data do evento
   datamovimento: "dataEvento",
   dataandamento: "dataEvento",
   dataevento: "dataEvento",
   data: "dataEvento",
+  datamovto: "dataEvento",
+  dtmov: "dataEvento",
+
   // Texto do evento
   textomovimento: "textoEvento",
   movimentacao: "textoEvento",
@@ -123,6 +163,8 @@ const COLUMN_ALIASES: Record<string, string> = {
   andamento: "textoEvento",
   texto: "textoEvento",
   textoevento: "textoEvento",
+  movimento: "textoEvento",
+  resumo: "textoEvento",
 };
 
 /** Classifica se o processo é uma execução fiscal pelos metadados. */
@@ -137,8 +179,23 @@ function classificarExecucaoFiscal(classe: string, exequente: string): boolean {
 /** Faz parse de valor monetário (aceita R$ e vírgula decimal). */
 function parseValor(raw: string): number | null {
   if (!raw) return null;
-  const limpo = raw.replace(/R\$\s*/g, "").replace(/\./g, "").replace(",", ".").trim();
-  const n = parseFloat(limpo);
+  // Remove tudo que não é dígito, vírgula ou ponto
+  // Mas antes remove o prefixo R$ e espaços
+  let s = raw.replace(/R\$/g, "").trim();
+
+  // Se contiver vírgula e ponto, assumimos BR (dot = thousands, comma = decimal)
+  if (s.includes(",") && s.includes(".")) {
+    s = s.replace(/\./g, "").replace(",", ".");
+  }
+  // Se contiver apenas vírgula, trocamos por ponto
+  else if (s.includes(",")) {
+    s = s.replace(",", ".");
+  }
+
+  // Remove caracteres residuais exceto dígitos, ponto e sinal de menos
+  s = s.replace(/[^0-9.\-]/g, "");
+
+  const n = parseFloat(s);
   return isNaN(n) ? null : n;
 }
 

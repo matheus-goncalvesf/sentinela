@@ -10,9 +10,9 @@ export default defineConfig({
     },
   },
   server: {
-    allowedHosts: ["sentinela-khhq.onrender.com"],
+    allowedHosts: true,
   },
   preview: {
-    allowedHosts: ["sentinela-khhq.onrender.com"],
+    allowedHosts: true,
   },
 });
