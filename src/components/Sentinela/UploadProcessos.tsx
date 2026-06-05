@@ -46,10 +46,10 @@ export function UploadProcessos({ onProcessosImportados }: UploadProcessosProps)
     }
     setIsProcessing(true);
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const buffer = e.target?.result as ArrayBuffer;
-        const { processos: processosBrutos, avisos: avisosParse } = parseSentinelaCSV(buffer);
+        const { processos: processosBrutos, avisos: avisosParse } = await parseSentinelaCSV(buffer);
         const processos: Processo[] = processosBrutos.map((p) => ({
           ...p,
           eventos: processarEventos(p.eventos.map((ev) => ({ data: ev.data, textoBruto: ev.textoBruto }))),

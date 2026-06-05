@@ -232,9 +232,9 @@ function parseValor(raw: string): number | null {
  * Estrutura esperada: flat (uma linha por evento), com numeroCnj repetido.
  * Colunas identificadas por aliases case-insensitive e sem acentos.
  */
-export function parseSentinelaCSV(
+export async function parseSentinelaCSV(
   buffer: ArrayBuffer
-): { processos: Processo[]; avisos: string[] } {
+): Promise<{ processos: Processo[]; avisos: string[] }> {
   // ── Decodificação ──────────────────────────────────────────────────────────
   let text: string;
   try {
@@ -250,8 +250,27 @@ export function parseSentinelaCSV(
 
   // ── Separador e cabeçalho ──────────────────────────────────────────────────
   const sep = detectSeparator(lines);
-  const headerRaw = splitCsvLine(lines[0], sep);
+
+  // Tenta encontrar a linha de cabeçalho (pode não ser a primeira)
+  // Procuramos pela linha que tenha o maior número de matches com aliases conhecidos
+  let bestHeaderIdx = 0;
+  let maxMatches = -1;
+  const sampleLines = lines.slice(0, 10);
+
+  sampleLines.forEach((line, idx) => {
+    const cells = splitCsvLine(line, sep).map(normalizeHeader);
+    const matches = cells.filter(c => COLUMN_ALIASES[c] ||
+      c.includes("valor") || c.includes("executad") || c.includes("processo") || c.includes("cnj")
+    ).length;
+    if (matches > maxMatches) {
+      maxMatches = matches;
+      bestHeaderIdx = idx;
+    }
+  });
+
+  const headerRaw = splitCsvLine(lines[bestHeaderIdx], sep);
   const header = headerRaw.map(normalizeHeader);
+
 
   // Mapeia índice da coluna para chave interna
   const colMap: Record<string, number> = {};
@@ -289,6 +308,39 @@ export function parseSentinelaCSV(
 
   const avisos: string[] = [];
 
+  // ── IA Fallback: Se colunas fundamentais ainda faltam, pergunta pro Gemini ──
+  if (!("numeroCnj" in colMap) || !("textoEvento" in colMap) || !("valorCausa" in colMap) || !("executado" in colMap)) {
+    try {
+      const backendUrl = localStorage.getItem("sentinela_backend_url") || import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+      const apiKey = localStorage.getItem("sentinela_api_key") || "sentinela-dev-key";
+
+      const amostra = lines.slice(bestHeaderIdx + 1, bestHeaderIdx + 4).map(l => splitCsvLine(l, sep));
+
+      const response = await fetch(`${backendUrl}/api/mapear-colunas`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+        body: JSON.stringify({ colunas: headerRaw, amostra })
+      });
+
+      if (response.ok) {
+        const { mapeamento } = await response.json();
+        if (mapeamento) {
+          Object.entries(mapeamento).forEach(([campo, index]) => {
+            const idxNum = Number(index);
+            if (!isNaN(idxNum) && idxNum >= 0 && idxNum < header.length) {
+              if (!colMap[campo]) {
+                colMap[campo] = idxNum;
+                avisos.push(`Coluna "${campo}" identificada via IA (índice ${idxNum})`);
+              }
+            }
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("Falha no mapeamento via IA:", err);
+    }
+  }
+
   if (!("numeroCnj" in colMap) || !("textoEvento" in colMap)) {
     const colunasEncontradas = headerRaw.join(", ");
     throw new Error(
@@ -303,7 +355,7 @@ export function parseSentinelaCSV(
   const processosMap = new Map<string, ProcessoBruto>();
   let linhasIgnoradas = 0;
 
-  for (let lineIdx = 1; lineIdx < lines.length; lineIdx++) {
+  for (let lineIdx = bestHeaderIdx + 1; lineIdx < lines.length; lineIdx++) {
     const cols = splitCsvLine(lines[lineIdx], sep);
     const get = (key: string): string =>
       colMap[key] !== undefined ? (cols[colMap[key]] ?? "").trim() : "";

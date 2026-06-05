@@ -232,6 +232,10 @@ export async function buscarProcessosPorCnpj(
           label.includes("exeqte") ||
           label.includes("exeq") ||
           label.includes("requerente") ||
+          label.includes("autor") ||
+          label.includes("embargante") ||
+          label.includes("agravante") ||
+          label.includes("apelante") ||
           label.includes("polo ativo");
         const isPoloPassivo =
           label.includes("executado") ||
@@ -242,6 +246,9 @@ export async function buscarProcessosPorCnpj(
           label.includes("exect") ||
           label.includes("requerido") ||
           label.includes("requerida") ||
+          label.includes("embargado") ||
+          label.includes("agravado") ||
+          label.includes("apelado") ||
           label.includes("polo passivo");
         if (!exequenteBlocoEncontrado && isPoloAtivo) {
           exequente = nome;
@@ -328,10 +335,11 @@ function extrairValorDaCausa(doc: Document): number | null {
     if (parsed !== null) return parsed;
   }
 
-  // 2) Tenta encontrar célula que contém "Valor da Causa"
+  // 2) Tenta encontrar célula que contém "Valor da Causa" ou "Valor da ação"
   const labels = doc.querySelectorAll<HTMLElement>("td, th, span, label, div");
   for (const el of labels) {
-    if (!el.textContent?.toLowerCase().includes("valor da causa")) continue;
+    const text = el.textContent?.toLowerCase() || "";
+    if (!text.includes("valor da causa") && !text.includes("valor da acao")) continue;
     // Pega o próximo elemento irmão ou a célula seguinte na tabela
     const next = el.nextElementSibling;
     if (next) {
