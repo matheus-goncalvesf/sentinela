@@ -106,33 +106,31 @@ export function UploadProcessos({ onProcessosImportados }: UploadProcessosProps)
       <div className="flex rounded-lg border border-border bg-card p-1 w-fit">
         <button
           onClick={() => handleSubModoChange("csv-completo")}
-          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            subModo === "csv-completo"
+          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${subModo === "csv-completo"
               ? "bg-primary text-white shadow-sm"
               : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-          }`}
+            }`}
         >
           <Table2 className="h-4 w-4" />
           CSV completo
         </button>
         <button
           onClick={() => handleSubModoChange("csv-cnpjs")}
-          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            subModo === "csv-cnpjs"
+          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${subModo === "csv-cnpjs"
               ? "bg-primary text-white shadow-sm"
               : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-          }`}
+            }`}
         >
           <Users className="h-4 w-4" />
           CSV de CNPJs - scraping automático
         </button>
-        </div>
+      </div>
 
-{subModo === "csv-cnpjs" && (
-         <UploadCnpjs onProcessosImportados={onProcessosImportados} />
-       )}
+      {subModo === "csv-cnpjs" && (
+        <UploadCnpjs onProcessosImportados={onProcessosImportados} />
+      )}
 
-       {subModo === "csv-completo" && (
+      {subModo === "csv-completo" && (
         <>
           {!preview && (
             <div
@@ -140,13 +138,12 @@ export function UploadProcessos({ onProcessosImportados }: UploadProcessosProps)
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
               onClick={() => inputRef.current?.click()}
-              className={`cursor-pointer rounded-xl border-2 border-dashed p-12 text-center transition-colors ${
-                isDragging
+              className={`cursor-pointer rounded-xl border-2 border-dashed p-12 text-center transition-colors ${isDragging
                   ? "border-primary bg-primary/5"
                   : "border-border bg-secondary hover:border-primary/40 hover:bg-secondary"
-              }`}
+                }`}
             >
-              <input ref={inputRef} type="file" accept=".csv,.txt" onChange={handleInputChange} className="hidden" />
+              <input ref={inputRef} type="file" accept=".csv,.txt,text/plain,text/csv,application/csv,text/*" onChange={handleInputChange} className="hidden" />
               <Upload className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
               <p className="text-sm font-medium text-foreground">
                 Arraste um arquivo CSV ou TXT ou <span className="text-primary">clique para selecionar</span>

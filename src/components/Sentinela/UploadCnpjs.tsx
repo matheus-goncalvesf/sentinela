@@ -215,13 +215,12 @@ export function UploadCnpjs({ onProcessosImportados }: UploadCnpjsProps) {
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
           onClick={() => inputRef.current?.click()}
-          className={`cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition-colors ${
-            isDragging
+          className={`cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition-colors ${isDragging
               ? "border-primary bg-primary/5"
               : "border-border bg-secondary hover:border-primary/40"
-          }`}
+            }`}
         >
-          <input ref={inputRef} type="file" accept=".csv,.txt" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFile(file); e.target.value = ""; }} className="hidden" />
+          <input ref={inputRef} type="file" accept=".csv,.txt,text/plain,text/csv,application/csv,text/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFile(file); e.target.value = ""; }} className="hidden" />
           <Users className="mx-auto mb-3 h-10 w-10 text-muted-foreground/30" />
           <p className="text-sm font-medium text-foreground">
             Arraste um arquivo CSV ou TXT ou <span className="text-primary">clique para selecionar</span>
