@@ -183,6 +183,28 @@ export function UploadProcessos({ onProcessosImportados }: UploadProcessosProps)
                     <p className="text-xs text-muted-foreground">
                       {preview.processos.reduce((s, p) => s + p.eventos.length, 0)} eventos classificados
                     </p>
+
+                    <div className="mt-4 max-h-48 overflow-y-auto rounded-md border border-border bg-background/50">
+                      <table className="w-full text-[10px]">
+                        <thead className="sticky top-0 bg-secondary text-muted-foreground uppercase">
+                          <tr>
+                            <th className="px-2 py-1 text-left">CNJ</th>
+                            <th className="px-2 py-1 text-left">Executado</th>
+                            <th className="px-2 py-1 text-right">Valor</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/50">
+                          {preview.processos.slice(0, 10).map((p) => (
+                            <tr key={p.id}>
+                              <td className="px-2 py-1 font-mono text-muted-foreground">{p.numeroCnj.slice(0, 15)}...</td>
+                              <td className="px-2 py-1 font-medium truncate max-w-[120px]">{p.executado || "---"}</td>
+                              <td className="px-2 py-1 text-right">{p.valorCausa?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) || "---"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
                     {avisos.length > 0 && (
                       <details className="mt-3">
                         <summary className="cursor-pointer text-xs text-amber-400">
@@ -219,7 +241,8 @@ export function UploadProcessos({ onProcessosImportados }: UploadProcessosProps)
             </Button>
           </div>
         </>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 }
