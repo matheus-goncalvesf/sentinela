@@ -1,7 +1,7 @@
 import type { CategoriaEvento, Processo } from "./types";
 import { CATEGORIA_EFEITO_MAP } from "./constants";
 
-const DEFAULT_BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+const DEFAULT_BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://sentinela-production-5bbf.up.railway.app";
 const BACKEND_URL_KEY = "sentinela_backend_url";
 const API_KEY_STORAGE = "sentinela_api_key";
 const MIN_CONFIANCA_REGEX = 0.70;
