@@ -78,8 +78,9 @@ const BASE_DELAY_MS = 1000;
 
 /**
  * Faz fetch de uma URL do TJSP e retorna o documento HTML parseado.
+ * Tenta fetch direto primeiro (TJSP não bloqueia CORS).
+ * Se falhar, usa o proxy no backend como fallback.
  * Implementa retry com exponential backoff (3 tentativas, 1s/2s/4s).
- * Lança erro descritivo em caso de falha persistente.
  */
 async function fetchHtmlTjsp(url: string): Promise<Document> {
   const backendUrl = getBackendUrl();
@@ -93,33 +94,53 @@ async function fetchHtmlTjsp(url: string): Promise<Document> {
       await sleep(delay);
     }
 
-    let response: Response;
+    // Tenta fetch DIRETO do TJSP primeiro (não precisa de proxy se CORS permitir)
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const response = await fetch(url, {
+        mode: "cors",
+        signal: controller.signal,
+        headers: {
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+      });
+      clearTimeout(timeout);
+      if (response.ok) {
+        const html = await response.text();
+        const parser = new DOMParser();
+        return parser.parseFromString(html, "text/html");
+      }
+      // Se falhou, continua para tentar via proxy
+      lastError = new Error(`TJSP retornou status ${response.status}.`);
+    } catch {
+      // Direto falhou (CORS ou rede), tenta via proxy
+    }
+
+    // Fallback: proxy no backend
     try {
       const fullUrl = `${proxyBaseUrl}${encodeURIComponent(url)}`;
-      response = await fetch(fullUrl);
+      const response = await fetch(fullUrl);
+
+      if (response.status >= 400 && response.status < 500) {
+        throw new Error(
+          `TJSP retornou status ${response.status} via proxy. URL alvo: ${url}`
+        );
+      }
+
+      if (response.ok) {
+        const html = await response.text();
+        const parser = new DOMParser();
+        return parser.parseFromString(html, "text/html");
+      }
+
+      lastError = new Error(`TJSP indisponível via proxy (status ${response.status}).`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       lastError = new Error(`Falha de rede ao consultar o TJSP (via proxy): ${msg}`);
-      continue;
     }
-
-    if (response.status >= 400 && response.status < 500) {
-      throw new Error(
-        `TJSP retornou status ${response.status} via proxy. URL alvo: ${url}`
-      );
-    }
-
-    if (!response.ok) {
-      lastError = new Error(`TJSP indisponível via proxy (status ${response.status}).`);
-      continue;
-    }
-
-    const html = await response.text();
-    const parser = new DOMParser();
-    return parser.parseFromString(html, "text/html");
   }
 
-  // All retries exhausted
   throw lastError ?? new Error("Falha ao consultar o TJSP após múltiplas tentativas.");
 }
 
