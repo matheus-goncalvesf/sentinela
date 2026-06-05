@@ -530,7 +530,7 @@ export default function App() {
       setLoadingAuth(false);
     });
 
-    const { data: { subscription } }: any = supabase.auth.onAuthStateChange((event: any, session: any) => {
+    const { data: { subscription } }: any = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       if (session?.user) {
         setUser(session.user);
         setView("app");
