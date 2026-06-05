@@ -525,7 +525,9 @@ export default function App() {
       alert("Erro de Autenticação (Google/Supabase): " + decodeURIComponent(errorDesc).replace(/\+/g, " "));
     }
 
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
+    supabase.auth.getSession().then((res: any) => {
+      const session = res?.data?.session;
+      const error = res?.error;
       setDebugLog(prev => prev + `[getSession] Error: ${error?.message || "none"}, SessionUser: ${session?.user?.email || "none"}\n`);
       if (session?.user) {
         setUser(session.user);
@@ -534,8 +536,8 @@ export default function App() {
       setLoadingAuth(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setDebugLog(prev => prev + `[AuthEvent] Event: ${_event}, SessionUser: ${session?.user?.email || "none"}\n`);
+    const { data: { subscription } }: any = supabase.auth.onAuthStateChange((event: any, session: any) => {
+      setDebugLog(prev => prev + `[AuthEvent] Event: ${event}, SessionUser: ${session?.user?.email || "none"}\n`);
       if (session?.user) {
         setUser(session.user);
         setView("app");

@@ -175,19 +175,19 @@ export function UploadCnpjs({ onProcessosImportados }: UploadCnpjsProps) {
       }
       atualizarStatus(cnpj, { tipo: "buscando_andamentos", nProcessos: processosEncontrados.length });
       const promessas = processosEncontrados.map((p) =>
-        buscarAndamentos(p.codigoProcesso, p.foro).then((andamentos) => ({ p, andamentos }))
+        buscarAndamentos(p.codigoProcesso, p.foro).then((resultado) => ({ p, ...resultado }))
       );
       const settled = await Promise.allSettled(promessas);
       if (canceladoRef.current) return;
       let nAnalisadosNesteCnpj = 0;
-      settled.forEach((result) => {
-        if (result.status === "rejected") return;
-        const { p, andamentos } = result.value;
-        const { processo, analise } = montarEAnalisarDoTjsp(p, cnpj, andamentos);
+      for (const result of settled) {
+        if (result.status === "rejected") continue;
+        const { p, andamentos, valorCausa } = result.value;
+        const { processo, analise } = await montarEAnalisarDoTjsp(p, cnpj, andamentos, { valorCausa });
         todosProcessos.push(processo);
         todasAnalises.push(analise);
         nAnalisadosNesteCnpj++;
-      });
+      }
       atualizarStatus(cnpj, { tipo: "concluido", nProcessos: nAnalisadosNesteCnpj });
       setTotalConcluidos((n) => n + 1);
     });

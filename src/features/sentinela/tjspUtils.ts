@@ -1,5 +1,6 @@
 import { processarEventos, analisarPrescricao } from "./motorPrescricao";
 import { parseDate } from "./dateUtils";
+import { enriquecerProcessoComLLM } from "./classificadorLLM";
 import type { AnalisePrescricao, Processo } from "./types";
 import type { AndamentoTJSP, ProcessoTJSP } from "../../services/tjspService";
 
@@ -10,13 +11,18 @@ function gerarId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+export interface DadosComplementares {
+  valorCausa?: number | null;
+}
+
 /**
  * Monta um objeto Processo a partir de dados do TJSP scraping.
  */
 export function montarProcessoDoTjsp(
   p: ProcessoTJSP,
   cnpjOrigem: string,
-  andamentos: AndamentoTJSP[]
+  andamentos: AndamentoTJSP[],
+  extras?: DadosComplementares
 ): Processo {
   const eventos = processarEventos(
     andamentos.map((a) => ({
@@ -32,7 +38,7 @@ export function montarProcessoDoTjsp(
     vara: p.vara,
     comarca: p.comarca,
     classe: p.classe,
-    valorCausa: null,
+    valorCausa: extras?.valorCausa ?? null,
     dataDistribuicao: parseDate(p.dataDistribuicao),
     exequente: p.exequente,
     executado: p.executado,
@@ -44,14 +50,17 @@ export function montarProcessoDoTjsp(
 }
 
 /**
- * Monta Processo e executa a análise de prescrição em uma só chamada.
+ * Monta Processo, enriquece com LLM (se configurado) e executa a análise
+ * de prescrição em uma só chamada.
  */
-export function montarEAnalisarDoTjsp(
+export async function montarEAnalisarDoTjsp(
   p: ProcessoTJSP,
   cnpjOrigem: string,
-  andamentos: AndamentoTJSP[]
-): { processo: Processo; analise: AnalisePrescricao } {
-  const processo = montarProcessoDoTjsp(p, cnpjOrigem, andamentos);
+  andamentos: AndamentoTJSP[],
+  extras?: DadosComplementares
+): Promise<{ processo: Processo; analise: AnalisePrescricao }> {
+  const processo = montarProcessoDoTjsp(p, cnpjOrigem, andamentos, extras);
+  await enriquecerProcessoComLLM(processo);
   const analise = analisarPrescricao(processo, new Date());
   return { processo, analise };
 }

@@ -64,23 +64,24 @@ export function BuscaAutomatica({ onAnalisesRealizadas }: BuscaAutomaticaProps) 
     const paraAnalisar = processosEncontradosTjsp.filter((p) => selecionados.has(getChaveTjsp(p)));
     if (paraAnalisar.length === 0) { setEtapa("selecao"); return; }
     setProgresso({ atual: 0, total: paraAnalisar.length });
-    const promessas = paraAnalisar.map((p) =>
-      buscarAndamentos(p.codigoProcesso, p.foro).then((andamentos) => ({ p, andamentos }))
+    const promessasAndamentos = paraAnalisar.map((p) =>
+      buscarAndamentos(p.codigoProcesso, p.foro).then((resultado) => ({ p, ...resultado }))
     );
-    const settled = await Promise.allSettled(promessas);
-    settled.forEach((result, idx) => {
+    const settled = await Promise.allSettled(promessasAndamentos);
+    for (let idx = 0; idx < settled.length; idx++) {
       const p = paraAnalisar[idx];
       setProgresso((prev) => ({ ...prev, atual: idx + 1 }));
+      const result = settled[idx];
       if (result.status === "rejected") {
         const msg = result.reason instanceof Error ? result.reason.message : String(result.reason);
         novosAvisos.push(`${p.numeroCnj}: falha ao buscar andamentos — ${msg}`);
-        return;
+        continue;
       }
-      const { andamentos } = result.value;
+      const { andamentos, valorCausa } = result.value;
       if (andamentos.length === 0) novosAvisos.push(`${p.numeroCnj}: nenhum andamento encontrado no TJSP.`);
-      const { processo, analise } = montarEAnalisarDoTjsp(p, cnpj, andamentos);
+      const { processo, analise } = await montarEAnalisarDoTjsp(p, cnpj, andamentos, { valorCausa });
       resultados.push({ processo, analise });
-    });
+    }
     setAvisos(novosAvisos);
     if (resultados.length === 0) {
       setErro("Não foi possível obter andamentos de nenhum processo selecionado. " + (novosAvisos.length > 0 ? novosAvisos.join(" ") : ""));

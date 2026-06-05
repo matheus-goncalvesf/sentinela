@@ -36,6 +36,11 @@ export interface AndamentoTJSP {
   texto: string;
 }
 
+export interface ResultadoAndamentos {
+  andamentos: AndamentoTJSP[];
+  valorCausa: number | null;
+}
+
 /** Remove tudo que não é dígito do CNPJ. */
 function limparCnpj(cnpj: string): string {
   return cnpj.replace(/\D/g, "");
@@ -225,13 +230,18 @@ export async function buscarProcessosPorCnpj(
         const isPoloAtivo =
           label.includes("exequente") ||
           label.includes("exeqte") ||
+          label.includes("exeq") ||
           label.includes("requerente") ||
           label.includes("polo ativo");
         const isPoloPassivo =
           label.includes("executado") ||
+          label.includes("executada") ||
           label.includes("exectdo") ||
+          label.includes("exectda") ||
           label.includes("executda") ||
+          label.includes("exect") ||
           label.includes("requerido") ||
+          label.includes("requerida") ||
           label.includes("polo passivo");
         if (!exequenteBlocoEncontrado && isPoloAtivo) {
           exequente = nome;
@@ -307,16 +317,67 @@ export async function buscarProcessosPorCnpj(
 }
 
 /**
- * Busca os andamentos de um processo específico pelo código interno do TJSP.
+ * Tenta extrair o valor da causa do documento HTML da página de detalhe do TJSP.
+ * Procura por elementos que contenham "Valor da Causa" e extrai o valor monetário.
+ */
+function extrairValorDaCausa(doc: Document): number | null {
+  // 1) Tenta seletor direto por ID
+  const porId = doc.querySelector<HTMLElement>("#valorDaCausa, .valorDaCausaProcesso");
+  if (porId) {
+    const parsed = parseValorMonetario(porId.textContent);
+    if (parsed !== null) return parsed;
+  }
+
+  // 2) Tenta encontrar célula que contém "Valor da Causa"
+  const labels = doc.querySelectorAll<HTMLElement>("td, th, span, label, div");
+  for (const el of labels) {
+    if (!el.textContent?.toLowerCase().includes("valor da causa")) continue;
+    // Pega o próximo elemento irmão ou a célula seguinte na tabela
+    const next = el.nextElementSibling;
+    if (next) {
+      const parsed = parseValorMonetario(next.textContent);
+      if (parsed !== null) return parsed;
+    }
+    // Tenta o elemento pai (tr) e busca o último td
+    const tr = el.closest("tr");
+    if (tr) {
+      const tds = tr.querySelectorAll("td");
+      if (tds.length >= 2) {
+        const parsed = parseValorMonetario(tds[tds.length - 1].textContent);
+        if (parsed !== null) return parsed;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Converte string de valor monetário brasileiro para número.
+ * Ex: "R$ 1.234,56" → 1234.56, "R$ 50.000,00" → 50000
+ */
+function parseValorMonetario(texto: string | null | undefined): number | null {
+  if (!texto) return null;
+  const limpo = texto.trim();
+  // R$ 1.234,56 ou 1.234,56
+  const match = limpo.match(/(?:R?\$)?\s*([\d.]+,\d{2})/);
+  if (!match) return null;
+  const num = match[1].replace(/\./g, "").replace(",", ".");
+  return parseFloat(num);
+}
+
+/**
+ * Busca os andamentos e dados complementares de um processo específico
+ * pelo código interno do TJSP.
  *
- * Retorna array vazio se a tabela de movimentações não for encontrada
- * (aviso no console) ou se não houver linhas. Lança erro apenas em
- * caso de falha de rede ou resposta de erro do TJSP.
+ * Retorna array vazio e valorCausa null se a tabela de movimentações
+ * não for encontrada. Lança erro apenas em caso de falha de rede
+ * ou resposta de erro do TJSP.
  */
 export async function buscarAndamentos(
   codigoProcesso: string,
   foro: string
-): Promise<AndamentoTJSP[]> {
+): Promise<ResultadoAndamentos> {
   if (!codigoProcesso) {
     throw new Error("Código do processo não informado.");
   }
@@ -337,7 +398,7 @@ export async function buscarAndamentos(
     console.warn(
       `[tjspService] Tabela de andamentos não encontrada para processo ${codigoProcesso}.`
     );
-    return [];
+    return { andamentos: [], valorCausa: null };
   }
 
   const andamentos: AndamentoTJSP[] = [];
@@ -359,5 +420,7 @@ export async function buscarAndamentos(
     andamentos.push({ data, texto });
   });
 
-  return andamentos;
+  const valorCausa = extrairValorDaCausa(doc);
+
+  return { andamentos, valorCausa };
 }

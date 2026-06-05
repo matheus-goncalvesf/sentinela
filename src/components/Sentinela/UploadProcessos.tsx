@@ -1,14 +1,13 @@
 import { useRef, useState } from "react";
-import { Upload, AlertTriangle, CheckCircle2, FileText, Table2, Users, Globe } from "lucide-react";
+import { Upload, AlertTriangle, CheckCircle2, FileText, Table2, Users } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { parseSentinelaCSV } from "../../features/sentinela/csvParser";
 import { processarEventos, analisarPrescricao } from "../../features/sentinela/motorPrescricao";
 import type { AnalisePrescricao, Processo } from "../../features/sentinela/types";
 import { UploadCnpjs } from "./UploadCnpjs";
-import { UploadCnpjsFederal } from "./UploadCnpjsFederal";
 
-type SubModo = "csv-completo" | "csv-cnpjs" | "pje-federal";
+type SubModo = "csv-completo" | "csv-cnpjs";
 
 interface UploadProcessosProps {
   onProcessosImportados: (processos: Processo[], analises: AnalisePrescricao[]) => void;
@@ -127,28 +126,13 @@ export function UploadProcessos({ onProcessosImportados }: UploadProcessosProps)
           <Users className="h-4 w-4" />
           CSV de CNPJs - scraping automático
         </button>
-        <button
-          onClick={() => handleSubModoChange("pje-federal")}
-          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            subModo === "pje-federal"
-              ? "bg-primary text-white shadow-sm"
-              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-          }`}
-        >
-          <Globe className="h-4 w-4" />
-          PJe Federal (backend Puppeteer)
-        </button>
         </div>
 
 {subModo === "csv-cnpjs" && (
          <UploadCnpjs onProcessosImportados={onProcessosImportados} />
        )}
 
-{subModo === "pje-federal" && (
-         <UploadCnpjsFederal onProcessosImportados={onProcessosImportados} />
-       )}
-
-        {subModo === "csv-completo" && (
+       {subModo === "csv-completo" && (
         <>
           {!preview && (
             <div

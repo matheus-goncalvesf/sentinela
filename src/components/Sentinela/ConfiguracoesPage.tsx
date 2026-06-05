@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { User, ShieldAlert, CreditCard, KeyRound, AlertTriangle, Eye, EyeOff, Save, Loader2, CheckCircle2, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { User, ShieldAlert, CreditCard, KeyRound, AlertTriangle, Eye, EyeOff, Save, Loader2, CheckCircle2, X, Sparkles, Wifi, WifiOff } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
@@ -278,6 +278,26 @@ export function ConfiguracoesPage({ user }: { user: SupabaseUser | null }) {
         </div>
       </section>
 
+      {/* Inteligência Artificial Section */}
+      <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="border-b border-border bg-secondary/30 px-6 py-4 flex items-center gap-3">
+          <div className="rounded-lg bg-purple-500/10 p-2 text-purple-500">
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <h3 className="font-semibold text-foreground">Classificação por IA (Gemini)</h3>
+        </div>
+
+        <div className="p-6">
+          <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+            Quando ativada, a classificação por IA usa o <strong className="text-foreground">Google Gemini</strong> (gratuito)
+            para classificar eventos que o sistema de regras não consegue identificar com confiança.
+            Sua chave fica salva apenas no seu navegador.
+          </p>
+
+          <LLMStatusSection />
+        </div>
+      </section>
+
       {/* Assinatura Section */}
       <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="border-b border-border bg-secondary/30 px-6 py-4 flex items-center gap-3">
@@ -380,6 +400,83 @@ export function ConfiguracoesPage({ user }: { user: SupabaseUser | null }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function LLMStatusSection() {
+  const [status, setStatus] = useState<"loading" | "online" | "offline" | "sem_chave">("loading");
+
+  useEffect(() => {
+    async function check() {
+      try {
+        const res = await fetch("http://localhost:3001/health", { signal: AbortSignal.timeout(3000) });
+        if (!res.ok) { setStatus("offline"); return; }
+        const data = await res.json();
+        if (data.gemini === "configurado") setStatus("online");
+        else setStatus("sem_chave");
+      } catch {
+        setStatus("offline");
+      }
+    }
+    check();
+    const interval = setInterval(check, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/50 px-4 py-3">
+        {status === "loading" && (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Verificando backend...</span>
+          </>
+        )}
+        {status === "online" && (
+          <>
+            <div className="rounded-full bg-emerald-500/10 p-1.5">
+              <Wifi className="h-4 w-4 text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-emerald-400">IA operacional</p>
+              <p className="text-xs text-muted-foreground">Gemini configurado no servidor — classificação automática ativa.</p>
+            </div>
+          </>
+        )}
+        {status === "sem_chave" && (
+          <>
+            <div className="rounded-full bg-amber-500/10 p-1.5">
+              <KeyRound className="h-4 w-4 text-amber-400" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-amber-400">Requer configuração</p>
+              <p className="text-xs text-muted-foreground">
+                O administrador do sistema precisa configurar a variável{' '}
+                <code className="rounded bg-card px-1 py-0.5 text-amber-300">GEMINI_API_KEY</code> no{' '}
+                <code className="rounded bg-card px-1 py-0.5 text-amber-300">backend/.env</code>.
+              </p>
+            </div>
+          </>
+        )}
+        {status === "offline" && (
+          <>
+            <div className="rounded-full bg-red-500/10 p-1.5">
+              <WifiOff className="h-4 w-4 text-red-400" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-red-400">Backend offline</p>
+              <p className="text-xs text-muted-foreground">O servidor backend não está acessível. A classificação por IA não estará disponível.</p>
+            </div>
+          </>
+        )}
+      </div>
+
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        A classificação por IA usa o <strong className="text-foreground">Google Gemini</strong> (gratuito)
+        para classificar eventos que o sistema de regras não consegue identificar com confiança.
+        A chave é configurada uma única vez no servidor pelo administrador — nenhuma ação necessária dos usuários.
+      </p>
     </div>
   );
 }

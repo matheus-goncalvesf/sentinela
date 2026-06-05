@@ -1,98 +1,113 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { consultarPorCnpj } from "./pjeScraper";
-import type { ConsultaRequest, ConsultaResponse } from "./types";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const API_KEY = process.env.API_KEY || "sentinela-dev-key";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+const GEMINI_MODEL = "gemini-1.5-flash";
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "5mb" }));
 
-// Health check
 app.get("/health", (_req, res) => {
-  const hasCaptchaKey = !!(process.env.CAPTCHA_API_KEY);
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
-    captcha: hasCaptchaKey ? "configurado" : "não configurado",
+    gemini: GEMINI_API_KEY ? "configurado" : "não configurado",
   });
 });
 
-// Consulta PJe
-app.post("/api/consulta-pje", async (req, res) => {
+app.post("/api/classificar", async (req, res) => {
   const apiKey = req.headers["x-api-key"] as string;
   if (apiKey !== API_KEY) {
-    return res.status(401).json({ success: false, error: "API key inválida" } as ConsultaResponse);
+    return res.status(401).json({ error: "API key inválida" });
   }
 
-  const { cnpj, tribunal } = req.body as ConsultaRequest;
-
-  if (!cnpj) {
-    return res.status(400).json({ success: false, error: "CNPJ é obrigatório" } as ConsultaResponse);
+  if (!GEMINI_API_KEY) {
+    return res.status(400).json({ error: "GEMINI_API_KEY não configurada no servidor" });
   }
 
-  const cnpjLimpo = cnpj.replace(/\D/g, "");
-  if (cnpjLimpo.length !== 14) {
-    return res.status(400).json({ success: false, error: "CNPJ inválido" } as ConsultaResponse);
+  const { textos } = req.body as { textos: string[] };
+  if (!Array.isArray(textos) || textos.length === 0) {
+    return res.status(400).json({ error: "textos é obrigatório" });
   }
+
+  if (textos.length > 100) {
+    return res.status(400).json({ error: "Máximo de 100 textos por requisição" });
+  }
+
+  const eventosStr = textos.map((t, i) => `${i}: "${t}"`).join("\n");
+
+  const prompt = `Você é um especialista em Direito Processual brasileiro, especificamente em Execução Fiscal (LEF 6.830/80) e Prescrição Intercorrente.
+
+Classifique cada evento processual abaixo em EXATAMENTE uma das categorias abaixo.
+
+CATEGORIAS:
+- suspensao_art40: Suspensão da execução com base no art. 40 caput da LEF. Efeito: suspende.
+- arquivamento_art40: Arquivamento provisório art. 40 §2º LEF. Efeito: inicia contagem.
+- tentativa_frustrada_localizacao: Tentativa frustrada de localizar o devedor. Efeito: inicia contagem.
+- tentativa_frustrada_bens: Tentativa frustrada de localizar bens penhoráveis. Efeito: inicia contagem.
+- constricao_positiva: Penhora/bloqueio efetivado. Efeito: interrompe.
+- penhora_rosto_autos: Penhora no rosto dos autos. Efeito: interrompe.
+- ciencia_fazenda: Ciência da Fazenda Pública. Efeito: inicia contagem.
+- parcelamento: Parcelamento do débito. Efeito: suspende.
+- parcelamento_rescindido: Parcelamento rescindido/cancelado. Efeito: neutro.
+- redirecionamento: Redirecionamento para sócio. Efeito: neutro.
+- despacho_citacao: Despacho que ordena a citação. Efeito: interrompe.
+- citacao_valida: Citação válida do executado. Efeito: interrompe.
+- indicacao_bens: Indicação de bens pelo executado. Efeito: neutro.
+- embargos_executado: Embargos à execução. Efeito: neutro.
+- excecao_pre_executividade: Exceção de pré-executividade. Efeito: neutro.
+- prescricao_reconhecida: Prescrição intercorrente reconhecida. Efeito: encerra.
+- pedido_fazenda_sem_efeito: Pedido genérico da Fazenda. Efeito: neutro.
+- ato_neutro: Ato ordinatório, mero expediente. Efeito: neutro.
+- extincao: Extinção do processo. Efeito: encerra.
+
+Responda APENAS JSON sem markdown: {"classificacoes":[{"indice":0,"categoria":"...","confianca":0.95}]}
+
+Eventos:
+${eventosStr}`;
 
   try {
-    console.log(`[API] Consultando CNPJ ${cnpjLimpo} no ${tribunal || "TRF3"}...`);
-    const processos = await consultarPorCnpj(cnpjLimpo, tribunal || "TRF3");
-    console.log(`[API] Encontrados ${processos.length} processos para CNPJ ${cnpjLimpo}`);
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
+        }),
+      }
+    );
 
-    const response: ConsultaResponse = {
-      success: true,
-      processos,
-    };
+    if (!response.ok) {
+      const err = await response.text().catch(() => "");
+      console.error(`[Gemini] Erro ${response.status}: ${err}`);
+      return res.status(502).json({ error: `Gemini API error: ${response.status}` });
+    }
 
-    res.json(response);
+    const data = await response.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      return res.status(502).json({ error: "Resposta vazia do Gemini" });
+    }
+
+    const jsonStr = text.replace(/```json\s*|\s*```/g, "").trim();
+    const parsed = JSON.parse(jsonStr);
+    const classificacoes = parsed.classificacoes || parsed;
+
+    res.json({ classificacoes });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Erro interno ao consultar PJe";
-    console.error(`[API] Erro: ${message}`);
-    res.status(500).json({ success: false, error: message } as ConsultaResponse);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[Gemini] Erro: ${msg}`);
+    res.status(502).json({ error: msg });
   }
-});
-
-// Consulta em lote (vários CNPJs)
-app.post("/api/consulta-pje-lote", async (req, res) => {
-  const apiKey = req.headers["x-api-key"] as string;
-  if (apiKey !== API_KEY) {
-    return res.status(401).json({ success: false, error: "API key inválida" });
-  }
-
-  const { cnpjs, tribunal } = req.body as { cnpjs: string[]; tribunal?: string };
-
-  if (!Array.isArray(cnpjs) || cnpjs.length === 0) {
-    return res.status(400).json({ success: false, error: "Lista de CNPJs é obrigatória" });
-  }
-
-  const resultados: Array<{ cnpj: string; processos: any[]; error?: string }> = [];
-
-  for (const cnpj of cnpjs) {
-    const cnpjLimpo = cnpj.replace(/\D/g, "");
-    if (cnpjLimpo.length !== 14) {
-      resultados.push({ cnpj, processos: [], error: "CNPJ inválido" });
-      continue;
-    }
-
-    try {
-      console.log(`[API Lote] Consultando CNPJ ${cnpjLimpo}...`);
-      const processos = await consultarPorCnpj(cnpjLimpo, tribunal || "TRF3");
-      resultados.push({ cnpj: cnpjLimpo, processos });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro ao consultar";
-      resultados.push({ cnpj: cnpjLimpo, processos: [], error: message });
-    }
-  }
-
-  res.json({ success: true, resultados });
 });
 
 app.listen(PORT, () => {
-  console.log(`[Server] Sentinela PJe Scraper rodando na porta ${PORT}`);
+  console.log(`[Server] Sentinela rodando na porta ${PORT}`);
   console.log(`[Server] Health: http://localhost:${PORT}/health`);
-  console.log(`[Server] API: POST http://localhost:${PORT}/api/consulta-pje`);
 });
