@@ -151,20 +151,19 @@ ${eventosStr}`;
 });
 
 app.get("/api/proxy-tjsp", async (req, res) => {
+  // Força cabeçalhos de CORS manualmente para evitar bloqueios se o middleware falhar
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-api-key");
+
   const targetUrl = req.query.url as string;
 
   if (!targetUrl || !targetUrl.includes("tjsp.jus.br")) {
     return res.status(400).json({ error: "URL inválida ou ausente" });
   }
 
-  console.log(`[Proxy] Acessando: ${targetUrl}`);
-
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-
     const response = await fetch(targetUrl, {
-      signal: controller.signal,
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
@@ -172,19 +171,17 @@ app.get("/api/proxy-tjsp", async (req, res) => {
       }
     });
 
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      console.warn(`[Proxy] TJSP retornou status ${response.status}`);
-    }
-
     const html = await response.text();
     res.set("Content-Type", "text/html; charset=UTF-8");
     res.send(html);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[Proxy] Erro fatal:`, msg);
-    res.status(502).json({ error: "Erro na ponte do servidor", details: msg });
+    // Retornamos 200 com erro no JSON para evitar que o gateway do Railway dê 502
+    res.status(200).json({
+      proxy_error: true,
+      message: "Erro na ponte do servidor",
+      details: msg
+    });
   }
 });
 
