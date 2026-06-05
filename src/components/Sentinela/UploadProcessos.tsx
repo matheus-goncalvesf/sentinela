@@ -97,7 +97,9 @@ export function UploadProcessos({ onProcessosImportados }: UploadProcessosProps)
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Importação em lote</h2>
+        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          Importação em lote <span className="text-[10px] font-mono text-muted-foreground/50">v2026.06.05.1305</span>
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Importe processos de execução fiscal para análise de prescrição intercorrente (art. 40 da LEF).
         </p>
@@ -107,8 +109,8 @@ export function UploadProcessos({ onProcessosImportados }: UploadProcessosProps)
         <button
           onClick={() => handleSubModoChange("csv-completo")}
           className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${subModo === "csv-completo"
-              ? "bg-primary text-white shadow-sm"
-              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            ? "bg-primary text-white shadow-sm"
+            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
         >
           <Table2 className="h-4 w-4" />
@@ -117,8 +119,8 @@ export function UploadProcessos({ onProcessosImportados }: UploadProcessosProps)
         <button
           onClick={() => handleSubModoChange("csv-cnpjs")}
           className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${subModo === "csv-cnpjs"
-              ? "bg-primary text-white shadow-sm"
-              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            ? "bg-primary text-white shadow-sm"
+            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
         >
           <Users className="h-4 w-4" />
@@ -139,8 +141,8 @@ export function UploadProcessos({ onProcessosImportados }: UploadProcessosProps)
               onDrop={handleDrop}
               onClick={() => inputRef.current?.click()}
               className={`cursor-pointer rounded-xl border-2 border-dashed p-12 text-center transition-colors ${isDragging
-                  ? "border-primary bg-primary/5"
-                  : "border-border bg-secondary hover:border-primary/40 hover:bg-secondary"
+                ? "border-primary bg-primary/5"
+                : "border-border bg-secondary hover:border-primary/40 hover:bg-secondary"
                 }`}
             >
               <input ref={inputRef} type="file" accept=".csv,.txt,text/plain,text/csv,application/csv,text/*" onChange={handleInputChange} className="hidden" />
