@@ -508,12 +508,8 @@ export default function App() {
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [activeNav, setActiveNav] = useState("dashboard");
   const [dashboardKey, setDashboardKey] = useState(0);
-  const [debugLog, setDebugLog] = useState<string>("");
 
   useEffect(() => {
-    // Debugging auth flow
-    setDebugLog(prev => prev + `[Init] URL: ${window.location.href}\n`);
-    
     // Capturar erros da URL (tanto hash quanto query string)
     const urlParams = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(window.location.hash.replace("#", "?"));
@@ -527,8 +523,6 @@ export default function App() {
 
     supabase.auth.getSession().then((res: any) => {
       const session = res?.data?.session;
-      const error = res?.error;
-      setDebugLog(prev => prev + `[getSession] Error: ${error?.message || "none"}, SessionUser: ${session?.user?.email || "none"}\n`);
       if (session?.user) {
         setUser(session.user);
         setView("app");
@@ -537,7 +531,6 @@ export default function App() {
     });
 
     const { data: { subscription } }: any = supabase.auth.onAuthStateChange((event: any, session: any) => {
-      setDebugLog(prev => prev + `[AuthEvent] Event: ${event}, SessionUser: ${session?.user?.email || "none"}\n`);
       if (session?.user) {
         setUser(session.user);
         setView("app");
@@ -566,30 +559,20 @@ export default function App() {
 
   if (view === "landing") {
     return (
-      <>
-        <div className="fixed top-0 left-0 z-50 bg-black/80 text-green-400 p-4 m-4 rounded font-mono text-xs w-96 pointer-events-none whitespace-pre-wrap">
-          {debugLog}
-        </div>
-        <LandingPage
-          onEntrar={() => setView("login")}
-          onSignup={() => setView("signup")}
-        />
-      </>
+      <LandingPage
+        onEntrar={() => setView("login")}
+        onSignup={() => setView("signup")}
+      />
     );
   }
 
   if (view === "login" || view === "signup") {
     return (
-      <>
-        <div className="fixed top-0 left-0 z-50 bg-black/80 text-green-400 p-4 m-4 rounded font-mono text-xs w-96 pointer-events-none whitespace-pre-wrap">
-          {debugLog}
-        </div>
-        <AuthPage
-          mode={view}
-          onSuccess={() => {/* onAuthStateChange handles it */}}
-          onBack={() => setView("landing")}
-        />
-      </>
+      <AuthPage
+        mode={view}
+        onSuccess={() => {/* onAuthStateChange handles it */}}
+        onBack={() => setView("landing")}
+      />
     );
   }
 
