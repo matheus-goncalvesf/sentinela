@@ -10,8 +10,6 @@
     "docker:run": "docker run -p 3001:3001 sentinela-pje-scraper"
   },
   "dependencies": {
-    "@types/axios": "^0.9.36",
-    "axios": "^1.17.0",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^4.21.0"

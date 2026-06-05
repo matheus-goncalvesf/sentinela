@@ -1,7 +1,6 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import axios from "axios";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3001", 10);
@@ -46,19 +45,24 @@ Amostra: ${JSON.stringify(amostra)}
 Responda APENAS JSON sem markdown: {"mapeamento":{"campo":"índice"}} ou {"mapeamento":{}} se não encontrar.`;
 
   try {
-    const response = await axios.post(
+    const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0, maxOutputTokens: 512 },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0, maxOutputTokens: 512 },
+        }),
       }
     );
-    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    const data: any = await response.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
     const jsonStr = text.replace(/```json\s*|\s*```/g, "").trim();
     const parsed = JSON.parse(jsonStr);
     res.json({ mapeamento: parsed.mapeamento || parsed });
   } catch (err) {
-    const errorMsg = (err as any).response?.data || (err as Error).message;
+    const errorMsg = (err as Error).message;
     console.error(`[Gemini Mapear] Erro:`, errorMsg);
     res.status(502).json({ error: "Erro na API do Gemini", details: errorMsg });
   }
@@ -116,15 +120,20 @@ Eventos:
 ${eventosStr}`;
 
   try {
-    const response = await axios.post(
+    const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
+        }),
       }
     );
 
-    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const data: any = await response.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) {
       return res.status(502).json({ error: "Resposta vazia do Gemini" });
     }
@@ -135,7 +144,7 @@ ${eventosStr}`;
 
     res.json({ classificacoes });
   } catch (err) {
-    const errorMsg = (err as any).response?.data || (err as Error).message;
+    const errorMsg = (err as Error).message;
     console.error(`[Gemini Classificar] Erro:`, errorMsg);
     res.status(502).json({ error: "Erro na API do Gemini", details: errorMsg });
   }
@@ -143,25 +152,39 @@ ${eventosStr}`;
 
 app.get("/api/proxy-tjsp", async (req, res) => {
   const targetUrl = req.query.url as string;
+
   if (!targetUrl || !targetUrl.includes("tjsp.jus.br")) {
     return res.status(400).json({ error: "URL inválida ou ausente" });
   }
 
+  console.log(`[Proxy] Acessando: ${targetUrl}`);
+
   try {
-    const response = await axios.get(targetUrl, {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const response = await fetch(targetUrl, {
+      signal: controller.signal,
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
         "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-      },
-      timeout: 10000,
+      }
     });
-    res.send(response.data);
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      console.warn(`[Proxy] TJSP retornou status ${response.status}`);
+    }
+
+    const html = await response.text();
+    res.set("Content-Type", "text/html; charset=UTF-8");
+    res.send(html);
   } catch (err) {
-    const status = (err as any).response?.status || 502;
-    const msg = (err as any).response?.data || (err as Error).message;
-    console.error(`[TJSP Proxy] Erro ao acessar ${targetUrl}:`, msg);
-    res.status(status).json({ error: "Erro ao acessar o TJSP via proxy", details: msg });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[Proxy] Erro fatal:`, msg);
+    res.status(502).json({ error: "Erro na ponte do servidor", details: msg });
   }
 });
 
