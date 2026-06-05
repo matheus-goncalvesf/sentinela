@@ -162,7 +162,8 @@ export function UploadCnpjs({ onProcessosImportados }: UploadCnpjsProps) {
         processosEncontrados = await buscarProcessosPorCnpj(cnpj);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        atualizarStatus(cnpj, { tipo: "erro", mensagem: msg });
+        console.error(`[UploadCnpjs] Erro no CNPJ ${cnpj}:`, err);
+        atualizarStatus(cnpj, { tipo: "erro", mensagem: `Erro: ${msg}` });
         nErros++;
         setTotalConcluidos((n) => n + 1);
         return;
