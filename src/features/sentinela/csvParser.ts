@@ -262,12 +262,38 @@ export function parseSentinelaCSV(
     }
   }
 
+  // FALLBACK: Se colunas essenciais não foram encontradas pelo alias exato, tenta busca parcial
+  for (let i = 0; i < header.length; i++) {
+    const h = header[i];
+
+    if (!colMap["numeroCnj"] && (h.includes("cnj") || h.includes("processo") || h.includes("numero"))) {
+      colMap["numeroCnj"] = i;
+    }
+    if (!colMap["valorCausa"] && (h.includes("valor") || h.includes("quantum") || h.includes("debito") || h.includes("causa"))) {
+      colMap["valorCausa"] = i;
+    }
+    if (!colMap["executado"] && (h.includes("executad") || h.includes("reu") || h.includes("passivo") || h.includes("devedor"))) {
+      colMap["executado"] = i;
+    }
+    if (!colMap["exequente"] && (h.includes("exequente") || h.includes("autor") || h.includes("ativo") || h.includes("credor"))) {
+      colMap["exequente"] = i;
+    }
+    if (!colMap["textoEvento"] && (h.includes("texto") || h.includes("movimento") || h.includes("andamento") || h.includes("descricao") || h.includes("historico"))) {
+      colMap["textoEvento"] = i;
+    }
+    if (!colMap["dataEvento"] && (h.includes("data") || h.includes("dt") || h.includes("movimento") || h.includes("evento")) && !h.includes("distribuicao")) {
+      // Evita pegar data de distribuição se estiver procurando data do evento
+      if (!colMap["dataEvento"]) colMap["dataEvento"] = i;
+    }
+  }
+
   const avisos: string[] = [];
 
   if (!("numeroCnj" in colMap) || !("textoEvento" in colMap)) {
     const colunasEncontradas = headerRaw.join(", ");
     throw new Error(
       `Colunas essenciais não encontradas. \n` +
+      `Separador utilizado: "${sep}" \n` +
       `Detectamos: [${colunasEncontradas}]. \n` +
       `Certifique-se de que o CSV tem colunas para 'numero_cnj' e 'texto_evento'.`
     );
