@@ -124,6 +124,13 @@ const COLUMN_ALIASES: Record<string, string> = {
   valortotal: "valorCausa",
   importancia: "valorCausa",
   quantum: "valorCausa",
+  valoratualizado: "valorCausa",
+  valordivida: "valorCausa",
+  valorconsolidado: "valorCausa",
+  valorintegral: "valorCausa",
+  total: "valorCausa",
+  debito: "valorCausa",
+  saldodevedor: "valorCausa",
 
   // Data de distribuição
   datadistribuicao: "dataDistribuicao",
@@ -151,6 +158,14 @@ const COLUMN_ALIASES: Record<string, string> = {
   requerido: "executado",
   padvpassivo: "executado",
   executadodevedor: "executado",
+  nomedoexecutado: "executado",
+  nomereu: "executado",
+  nomedevedor: "executado",
+  sujeitopassivo: "executado",
+  apelado: "executado",
+  impugnado: "executado",
+  executada: "executado",
+  re: "executado",
 
   // CNPJ executado
   cnpj: "cnpjExecutado",
