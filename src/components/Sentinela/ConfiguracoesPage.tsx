@@ -410,7 +410,8 @@ function LLMStatusSection() {
   useEffect(() => {
     async function check() {
       try {
-        const res = await fetch("http://localhost:3001/health", { signal: AbortSignal.timeout(3000) });
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+        const res = await fetch(`${backendUrl}/health`, { signal: AbortSignal.timeout(3000) });
         if (!res.ok) { setStatus("offline"); return; }
         const data = await res.json();
         if (data.gemini === "configurado") setStatus("online");
