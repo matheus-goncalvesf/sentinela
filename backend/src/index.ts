@@ -8,7 +8,11 @@ const API_KEY = process.env.API_KEY || "sentinela-dev-key";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_MODEL = "gemini-1.5-flash";
 
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-api-key', 'Authorization'],
+}));
 app.use(express.json({ limit: "5mb" }));
 
 app.get("/health", (_req, res) => {
@@ -150,11 +154,18 @@ ${eventosStr}`;
   }
 });
 
+app.options("/api/proxy-tjsp", (_req, res) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-api-key, Authorization");
+  res.sendStatus(204);
+});
+
 app.get("/api/proxy-tjsp", async (req, res) => {
   // Força cabeçalhos de CORS manualmente para evitar bloqueios se o middleware falhar
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, x-api-key");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-api-key, Authorization");
 
   const targetUrl = req.query.url as string;
 

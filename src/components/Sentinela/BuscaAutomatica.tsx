@@ -77,9 +77,9 @@ export function BuscaAutomatica({ onAnalisesRealizadas }: BuscaAutomaticaProps) 
         novosAvisos.push(`${p.numeroCnj}: falha ao buscar andamentos — ${msg}`);
         continue;
       }
-      const { andamentos, valorCausa } = result.value;
+      const { andamentos, valorCausa, exequente, executado } = result.value;
       if (andamentos.length === 0) novosAvisos.push(`${p.numeroCnj}: nenhum andamento encontrado no TJSP.`);
-      const { processo, analise } = await montarEAnalisarDoTjsp(p, cnpj, andamentos, { valorCausa });
+      const { processo, analise } = await montarEAnalisarDoTjsp(p, cnpj, andamentos, { valorCausa, exequente, executado });
       resultados.push({ processo, analise });
     }
     setAvisos(novosAvisos);

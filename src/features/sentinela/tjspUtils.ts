@@ -40,7 +40,7 @@ export function montarProcessoDoTjsp(
     vara: p.vara,
     comarca: p.comarca,
     classe: p.classe,
-    valorCausa: extras?.valorCausa ?? null,
+    valorCausa: extras?.valorCausa ?? p.valorCausa ?? null,
     dataDistribuicao: parseDate(p.dataDistribuicao),
     exequente: extras?.exequente || p.exequente,
     executado: extras?.executado || p.executado,

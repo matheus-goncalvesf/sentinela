@@ -31,6 +31,7 @@ export interface ProcessoTJSP {
   dataDistribuicao: string;
   exequente: string;
   executado: string;
+  valorCausa?: number | null;
 }
 
 export interface AndamentoTJSP {
@@ -263,6 +264,10 @@ export async function buscarProcessosPorCnpj(
       if (!executado && genericNames[1]) executado = genericNames[1];
     }
 
+    // Tenta extrair valor da causa da listagem (se presente)
+    const valorEl = div.querySelector(".valorDaCausaProcesso, .valorCausa, [class*='valor']");
+    const valorCausa = valorEl ? parseValorMonetario(valorEl.textContent) : null;
+
     const dataEl = div.querySelector(".dataLocalDistribuicaoProcesso");
     const dataTxt = limparTexto(dataEl?.textContent);
     const dataDistribuicao = dataTxt.slice(0, 10);
@@ -288,6 +293,7 @@ export async function buscarProcessosPorCnpj(
       classe,
       assunto,
       dataDistribuicao,
+      valorCausa,
       exequente: exequente || "---",
       executado: executado || "---",
     });
@@ -299,34 +305,68 @@ export async function buscarProcessosPorCnpj(
 /**
  * Tenta extrair o valor da causa do documento HTML da página de detalhe do TJSP.
  * Procura por elementos que contenham "Valor da Causa" e extrai o valor monetário.
+ * Inclui múltiplos fallbacks para lidar com variações da estrutura do TJSP.
  */
 function extrairValorDaCausa(doc: Document): number | null {
-  // 1) Tenta seletor direto por ID
-  const porId = doc.querySelector<HTMLElement>("#valorDaCausa, .valorDaCausaProcesso");
-  if (porId) {
-    const parsed = parseValorMonetario(porId.textContent);
+  // 1) Tenta seletores diretos por ID / classe (várias variações)
+  const direto = doc.querySelector<HTMLElement>(
+    "#valorDaCausa, .valorDaCausaProcesso, " +
+    "[id*='valorCausa'], [class*='valorCausa'], " +
+    "[id*='valor-causa'], [class*='valor-causa'], " +
+    ".labelValor, #labelValor"
+  );
+  if (direto) {
+    const parsed = parseValorMonetario(direto.textContent);
     if (parsed !== null) return parsed;
   }
 
-  // 2) Tenta encontrar célula que contém "Valor da Causa" ou "Valor da ação"
-  const labels = doc.querySelectorAll<HTMLElement>("td, th, span, label, div");
+  // 2) Tenta encontrar qualquer elemento que contenha "Valor da Causa" ou "Valor da ação"
+  const labels = doc.querySelectorAll<HTMLElement>("td, th, span, label, div, p, strong");
   for (const el of labels) {
     const text = el.textContent?.toLowerCase() || "";
-    if (!text.includes("valor da causa") && !text.includes("valor da acao")) continue;
-    // Pega o próximo elemento irmão ou a célula seguinte na tabela
+    const isValor = text.includes("valor da causa") ||
+                    text.includes("valor da acao") ||
+                    text.includes("valor da ação") ||
+                    text.includes("valor causa");
+    if (!isValor) continue;
+
+    // Tenta extrair do PRÓPRIO elemento (se o valor estiver na mesma célula)
+    let parsed = parseValorMonetario(el.textContent);
+    if (parsed !== null) return parsed;
+
+    // Pega o próximo elemento irmão
     const next = el.nextElementSibling;
     if (next) {
-      const parsed = parseValorMonetario(next.textContent);
+      parsed = parseValorMonetario(next.textContent);
       if (parsed !== null) return parsed;
     }
-    // Tenta o elemento pai (tr) e busca o último td
+
+    // Pega o elemento anterior (às vezes o label vem depois)
+    const prev = el.previousElementSibling;
+    if (prev) {
+      parsed = parseValorMonetario(prev.textContent);
+      if (parsed !== null) return parsed;
+    }
+
+    // Tenta a linha inteira (tr) e busca o último td
     const tr = el.closest("tr");
     if (tr) {
-      const tds = tr.querySelectorAll("td");
-      if (tds.length >= 2) {
-        const parsed = parseValorMonetario(tds[tds.length - 1].textContent);
+      const tds = tr.querySelectorAll("td, th");
+      // tenta cada célula na linha
+      for (const td of tds) {
+        parsed = parseValorMonetario(td.textContent);
         if (parsed !== null) return parsed;
       }
+    }
+  }
+
+  // 3) Fallback: busca qualquer valor em formato "R$ X.XXX,XX" na página
+  const bodyText = doc.body?.textContent || "";
+  const valores = bodyText.match(/(?:R?\$)\s*[\d.,]+(?:,\d{2})?/g);
+  if (valores) {
+    for (const v of valores) {
+      const parsed = parseValorMonetario(v);
+      if (parsed !== null && parsed > 0) return parsed;
     }
   }
 
@@ -409,46 +449,95 @@ export async function buscarAndamentos(
 
 /**
  * Extrai as partes (Exequente/Executado) da página de detalhes do processo.
+ * Tenta múltiplas estratégias de extração para lidar com variações do HTML do TJSP.
  */
 function extrairPartesDaPagina(doc: Document): { exequente: string; executado: string } {
   let exequente = "";
   let executado = "";
 
-  const table = doc.getElementById("tablePartesPrincipais") || doc.getElementById("tableTodasPartes");
-  if (!table) return { exequente, executado };
+  // 1) Tenta pelas tabelas de partes
+  const table =
+    doc.getElementById("tablePartesPrincipais") ||
+    doc.getElementById("tableTodasPartes") ||
+    doc.querySelector<HTMLElement>("table[id*='Parte']");
 
-  const rows = table.querySelectorAll("tr");
-  rows.forEach(tr => {
-    const labelEl = tr.querySelector(".tipoDeParticipacao, .label");
-    if (!labelEl) return;
+  if (table) {
+    const rows = table.querySelectorAll("tr, div.fundamento, li");
+    rows.forEach(tr => {
+      const labelEl = tr.querySelector(".tipoDeParticipacao, .label, .legenda, span[class*='parte']");
+      if (!labelEl) return;
 
-    const label = (labelEl.textContent || "").toLowerCase();
-    const nomeEl = tr.querySelector(".nomeParteEAdvogado, .nomeParte, td:last-child");
-    if (!nomeEl) return;
+      const label = (labelEl.textContent || "").toLowerCase();
+      const nomeEl = tr.querySelector(".nomeParteEAdvogado, .nomeParte, td:last-child, span[class*='nome']");
+      if (!nomeEl) return;
 
-    const nome = (nomeEl.textContent || "").trim().split("\n")[0].trim();
-    if (!nome) return;
+      const nome = (nomeEl.textContent || "").trim().split("\n")[0].trim();
+      if (!nome) return;
 
-    const isPoloAtivo =
-      label.includes("exequente") ||
-      label.includes("exeqte") ||
-      label.includes("exeq") ||
-      label.includes("requerente") ||
-      label.includes("autor") ||
-      label.includes("polo ativo");
+      if (!exequente && /exequente|exeqte|exeq\.?|requerente|autor|polo ativo/i.test(label)) {
+        exequente = nome;
+      } else if (!executado && /executad[oa]?|exectd[oa]?|exect\.?|requerido|r[eé]u|polo passivo/i.test(label)) {
+        executado = nome;
+      }
+    });
+  }
 
-    const isPoloPassivo =
-      label.includes("executado") ||
-      label.includes("executada") ||
-      label.includes("exectdo") ||
-      label.includes("exectda") ||
-      label.includes("exect") ||
-      label.includes("requerido") ||
-      label.includes("polo passivo");
+  // 2) Fallback: procura por spans/labels com "Exequente" / "Executado" em toda a página
+  if (!exequente || !executado) {
+    const allLabels = doc.querySelectorAll<HTMLElement>("span, label, td, div.label, div[class*='parte']");
+    allLabels.forEach(el => {
+      const text = (el.textContent || "").toLowerCase();
 
-    if (!exequente && isPoloAtivo) exequente = nome;
-    else if (!executado && isPoloPassivo) executado = nome;
-  });
+      if (!exequente && /^exequente|^exeqte|^exeq\.?\b/i.test(text)) {
+        const val = extrairNomeParteAposLabel(el);
+        if (val) exequente = val;
+      }
+      if (!executado && /^executad[oa]?|^exectd[oa]?|^exect\.?\b|^r[eé]u\b/i.test(text)) {
+        const val = extrairNomeParteAposLabel(el);
+        if (val) executado = val;
+      }
+    });
+  }
+
+  // 3) Fallback: regex no HTML bruto
+  if (!exequente || !executado) {
+    const html = doc.body?.innerHTML || "";
+    if (!exequente) {
+      const m = html.match(/(?:Exequente|Exeqte|Exeq\.)\s*[:\-]?\s*(?:<[^>]+>\s*)?([^<]{3,}?)(?:\s*<|$)/i);
+      if (m) exequente = limparTexto(m[1]);
+    }
+    if (!executado) {
+      const m = html.match(/(?:Executado|Executada|Exectdo|Exectda|Réu)\s*[:\-]?\s*(?:<[^>]+>\s*)?([^<]{3,}?)(?:\s*<|$)/i);
+      if (m) executado = limparTexto(m[1]);
+    }
+  }
 
   return { exequente, executado };
+}
+
+/** Após um label (ex.: "Exequente:"), tenta extrair o nome da parte do próximo elemento. */
+function extrairNomeParteAposLabel(el: HTMLElement): string {
+  // Tenta próximo irmão de texto
+  const nextNode = el.nextSibling;
+  if (nextNode && nextNode.nodeType === Node.TEXT_NODE) {
+    const val = limparTexto(nextNode.textContent);
+    if (val && val.length > 3) return val;
+  }
+
+  // Tenta próximo elemento irmão
+  const next = el.nextElementSibling as HTMLElement;
+  if (next) {
+    const val = limparTexto(next.textContent?.split("\n")[0]);
+    if (val && val.length > 3) return val;
+  }
+
+  // Tenta o conteúdo do parent, removendo o texto do próprio label
+  const parentTxt = el.parentElement?.textContent || "";
+  const parts = parentTxt.split(el.textContent || "");
+  if (parts.length > 1) {
+    const val = limparTexto(parts[1].split("\n")[0]);
+    if (val && val.length > 3) return val;
+  }
+
+  return "";
 }
