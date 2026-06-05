@@ -13,7 +13,7 @@ interface ClassificacaoLLM {
 
 const cache = new Map<string, ClassificacaoLLM>();
 
-function getBackendUrl(): string {
+export function getBackendUrl(): string {
   try {
     return localStorage.getItem(BACKEND_URL_KEY) || DEFAULT_BACKEND_URL;
   } catch {

@@ -13,6 +13,8 @@ function gerarId(): string {
 
 export interface DadosComplementares {
   valorCausa?: number | null;
+  exequente?: string;
+  executado?: string;
 }
 
 /**
@@ -40,8 +42,8 @@ export function montarProcessoDoTjsp(
     classe: p.classe,
     valorCausa: extras?.valorCausa ?? null,
     dataDistribuicao: parseDate(p.dataDistribuicao),
-    exequente: p.exequente,
-    executado: p.executado,
+    exequente: extras?.exequente || p.exequente,
+    executado: extras?.executado || p.executado,
     cnpjExecutado: cnpjOrigem.replace(/\D/g, ""),
     isExecucaoFiscal: true,
     eventos,

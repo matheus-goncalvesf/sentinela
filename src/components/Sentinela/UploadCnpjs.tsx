@@ -182,8 +182,8 @@ export function UploadCnpjs({ onProcessosImportados }: UploadCnpjsProps) {
       let nAnalisadosNesteCnpj = 0;
       for (const result of settled) {
         if (result.status === "rejected") continue;
-        const { p, andamentos, valorCausa } = result.value;
-        const { processo, analise } = await montarEAnalisarDoTjsp(p, cnpj, andamentos, { valorCausa });
+        const { p, andamentos, valorCausa, exequente, executado } = result.value;
+        const { processo, analise } = await montarEAnalisarDoTjsp(p, cnpj, andamentos, { valorCausa, exequente, executado });
         todosProcessos.push(processo);
         todasAnalises.push(analise);
         nAnalisadosNesteCnpj++;
@@ -216,8 +216,8 @@ export function UploadCnpjs({ onProcessosImportados }: UploadCnpjsProps) {
           onDrop={handleDrop}
           onClick={() => inputRef.current?.click()}
           className={`cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition-colors ${isDragging
-              ? "border-primary bg-primary/5"
-              : "border-border bg-secondary hover:border-primary/40"
+            ? "border-primary bg-primary/5"
+            : "border-border bg-secondary hover:border-primary/40"
             }`}
         >
           <input ref={inputRef} type="file" accept=".csv,.txt,text/plain,text/csv,application/csv,text/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFile(file); e.target.value = ""; }} className="hidden" />

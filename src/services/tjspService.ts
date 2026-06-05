@@ -1,3 +1,5 @@
+import { getBackendUrl } from "../features/sentinela/classificadorLLM";
+
 /**
  * Serviço de integração com o TJSP via fetch direto do browser.
  * O TJSP (esaj.tjsp.jus.br) responde com status 200 sem bloqueio de CORS,
@@ -39,6 +41,8 @@ export interface AndamentoTJSP {
 export interface ResultadoAndamentos {
   andamentos: AndamentoTJSP[];
   valorCausa: number | null;
+  exequente?: string;
+  executado?: string;
 }
 
 /** Remove tudo que não é dígito do CNPJ. */
@@ -77,6 +81,8 @@ const BASE_DELAY_MS = 1000;
  * Lança erro descritivo em caso de falha persistente.
  */
 async function fetchHtmlTjsp(url: string): Promise<Document> {
+  const backendUrl = getBackendUrl();
+  const proxyBaseUrl = `${backendUrl}/api/proxy-tjsp?url=`;
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -88,36 +94,26 @@ async function fetchHtmlTjsp(url: string): Promise<Document> {
 
     let response: Response;
     try {
-      response = await fetch(url, {
-        headers: { Accept: "text/html,application/xhtml+xml" },
-      });
+      const fullUrl = `${proxyBaseUrl}${encodeURIComponent(url)}`;
+      response = await fetch(fullUrl);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      lastError = new Error(`Falha de rede ao consultar o TJSP: ${msg}`);
-      continue; // Retry on network error
+      lastError = new Error(`Falha de rede ao consultar o TJSP (via proxy): ${msg}`);
+      continue;
     }
 
-    // Don't retry on client errors (4xx) — they won't resolve with retries
     if (response.status >= 400 && response.status < 500) {
       throw new Error(
-        `TJSP retornou status ${response.status}. Verifique os parâmetros da consulta.`
+        `TJSP retornou status ${response.status} via proxy. URL alvo: ${url}`
       );
     }
 
-    // Retry on server errors (5xx)
     if (!response.ok) {
-      lastError = new Error(
-        `TJSP retornou status ${response.status}. Tente novamente em instantes.`
-      );
+      lastError = new Error(`TJSP indisponível via proxy (status ${response.status}).`);
       continue;
     }
 
     const html = await response.text();
-    if (!html || html.trim().length === 0) {
-      lastError = new Error("TJSP retornou uma resposta vazia. Tente novamente.");
-      continue; // Retry on empty response
-    }
-
     const parser = new DOMParser();
     return parser.parseFromString(html, "text/html");
   }
@@ -192,7 +188,6 @@ export async function buscarProcessosPorCnpj(
   const processos: ProcessoTJSP[] = [];
 
   divs.forEach((div) => {
-    // Link do processo: contém o número CNJ e href com processo.codigo e processo.foro
     const linkEl = div.querySelector<HTMLAnchorElement>(".linkProcesso");
     if (!linkEl) return;
 
@@ -203,111 +198,71 @@ export async function buscarProcessosPorCnpj(
 
     if (!numeroCnj || !codigoProcesso) return;
 
-    // Classe processual
     const classeEl = div.querySelector(".classeProcesso");
     const classe = limparTexto(classeEl?.textContent);
-
-    // Filtro: apenas execuções fiscais
     if (!isExecucaoFiscal(classe)) return;
 
-    // Assunto principal
     const assuntoEl = div.querySelector(".assuntoPrincipalProcesso");
     const assunto = limparTexto(assuntoEl?.textContent);
 
-    // Partes: busca por label de polo para correta extração em casos de litisconsórcio
     let exequente = "";
     let executado = "";
-    {
-      // Procura por todos os elementos que podem conter o tipo de participação
-      const labels = div.querySelectorAll<HTMLElement>("label.tipoDeParticipacao, .tipoParticipacao, .labelParticipacao");
-      labels.forEach((labelEl) => {
-        const label = limparTexto(labelEl.textContent).toLowerCase();
 
-        // O nome geralmente está no próximo elemento ou no pai
-        let nomeEl = labelEl.nextElementSibling as HTMLElement;
-        if (!nomeEl || !nomeEl.classList.contains("nomeParte")) {
-          nomeEl = labelEl.parentElement?.querySelector(".nomeParte") as HTMLElement;
+    // Tenta encontrar as partes varrendo labels e spans
+    const partyLabels = div.querySelectorAll<HTMLElement>("label, span, .tipoDeParticipacao, .tipoParticipacao");
+    partyLabels.forEach((lbl) => {
+      const text = lbl.textContent?.toLowerCase() || "";
+      const isExeq = text.includes("exeq") || text.includes("autor") || text.includes("requerent");
+      const isExec = text.includes("exect") || text.includes("executad") || text.includes("requerid") || text.includes("reu");
+
+      if (isExeq || isExec) {
+        let val = "";
+        // 1. Tenta pegar texto após a label no mesmo pai
+        const pTxt = lbl.parentElement?.textContent || "";
+        const parts = pTxt.split(lbl.textContent || "");
+        if (parts.length > 1) val = limparTexto(parts[1].split("\n")[0]);
+
+        // 2. Tenta o próximo irmão
+        if (!val) {
+          const next = lbl.nextElementSibling as HTMLElement;
+          if (next) val = limparTexto(next.textContent?.split("\n")[0]);
         }
 
-        if (!nomeEl) return;
-        const nome = limparTexto(nomeEl.textContent.split("\n")[0]);
+        // 3. Tenta encontrar .nomeParte próximo
+        if (!val) {
+          const row = lbl.closest("div, tr, li");
+          const n = row?.querySelector(".nomeParte");
+          if (n) val = limparTexto(n.textContent);
+        }
 
-        const isPoloAtivo =
-          label.includes("exequente") ||
-          label.includes("exeqte") ||
-          label.includes("exeq") ||
-          label.includes("requerente") ||
-          label.includes("autor") ||
-          label.includes("embargante") ||
-          label.includes("agravante") ||
-          label.includes("apelante") ||
-          label.includes("polo ativo");
-        const isPoloPassivo =
-          label.includes("executado") ||
-          label.includes("executada") ||
-          label.includes("exectdo") ||
-          label.includes("exectda") ||
-          label.includes("executda") ||
-          label.includes("exect") ||
-          label.includes("requerido") ||
-          label.includes("requerida") ||
-          label.includes("embargado") ||
-          label.includes("agravado") ||
-          label.includes("apelado") ||
-          label.includes("polo passivo");
-
-        if (!exequente && isPoloAtivo) {
-          exequente = nome;
-        } else if (!executado && isPoloPassivo) {
-          executado = nome;
-        }
-      });
-      // Fallback por posição se não encontrou via label (estrutura desconhecida)
-      if (!exequente || !executado) {
-        const parteEls = div.querySelectorAll(".nomeParte");
-        if (!exequente) {
-          exequente = limparTexto(parteEls[0]?.textContent.split("\n")[0]);
-        }
-        if (!executado) {
-          executado = limparTexto(parteEls[1]?.textContent.split("\n")[0]);
-        }
-        if (!exequente || !executado) {
-          const numeroCnjDebug = limparTexto(linkEl.textContent);
-          console.warn(
-            `[tjspService] Extração de partes por label falhou — usando fallback por posição. numeroCnj: ${numeroCnjDebug}`
-          );
+        if (val) {
+          if (isExeq && !exequente) exequente = val;
+          else if (isExec && !executado) executado = val;
         }
       }
+    });
+
+    // Fallback absoluto: pega os dois primeiros elementos com classe nomeParte
+    if (!exequente || !executado) {
+      const genericNames = Array.from(div.querySelectorAll(".nomeParte")).map(e => limparTexto(e.textContent?.split("\n")[0]));
+      if (!exequente && genericNames[0]) exequente = genericNames[0];
+      if (!executado && genericNames[1]) executado = genericNames[1];
     }
 
-    // Data de distribuição: primeiros 10 caracteres (DD/MM/AAAA)
     const dataEl = div.querySelector(".dataLocalDistribuicaoProcesso");
-    const dataDistribuicao = limparTexto(dataEl?.textContent).slice(0, 10);
+    const dataTxt = limparTexto(dataEl?.textContent);
+    const dataDistribuicao = dataTxt.slice(0, 10);
+    const localInfo = dataTxt.slice(10).trim();
 
-    // Foro/comarca e vara: extraídos do mesmo campo que data (TJSP os exibe juntos)
-    // "DD/MM/AAAA  Foro de Comarca - Vara"  ou  "DD/MM/AAAA  Foro – Vara" (travessão)
-    const dataLocalTexto = limparTexto(dataEl?.textContent);
-    const parteComarca = dataLocalTexto.slice(10).trim();
-    // Tenta travessão (U+2013) primeiro, depois hífen simples
-    let separadorIdx = parteComarca.indexOf(" \u2013 ");
-    let separadorLen = 3;
-    if (separadorIdx < 0) {
-      separadorIdx = parteComarca.indexOf(" - ");
-      separadorLen = 3;
-    }
-    let comarca: string;
-    let vara: string;
-    if (separadorIdx >= 0) {
-      comarca = parteComarca.slice(0, separadorIdx).trim();
-      vara = parteComarca.slice(separadorIdx + separadorLen).trim();
+    let comarca = "";
+    let vara = "";
+    const sep = localInfo.includes("\u2013") ? "\u2013" : "-";
+    const parts = localInfo.split(sep);
+    if (parts.length >= 2) {
+      comarca = parts[0].trim();
+      vara = parts[1].trim();
     } else {
-      comarca = parteComarca;
-      vara = "";
-      if (parteComarca) {
-        console.warn(
-          `[tjspService] Separador não encontrado em comarca/vara — numeroCnj: ${limparTexto(linkEl.textContent)}`
-        );
-      }
+      comarca = localInfo;
     }
 
     processos.push({
@@ -319,8 +274,8 @@ export async function buscarProcessosPorCnpj(
       classe,
       assunto,
       dataDistribuicao,
-      exequente,
-      executado,
+      exequente: exequente || "---",
+      executado: executado || "---",
     });
   });
 
@@ -433,6 +388,53 @@ export async function buscarAndamentos(
   });
 
   const valorCausa = extrairValorDaCausa(doc);
+  const partes = extrairPartesDaPagina(doc);
 
-  return { andamentos, valorCausa };
+  return { andamentos, valorCausa, ...partes };
+}
+
+/**
+ * Extrai as partes (Exequente/Executado) da página de detalhes do processo.
+ */
+function extrairPartesDaPagina(doc: Document): { exequente: string; executado: string } {
+  let exequente = "";
+  let executado = "";
+
+  const table = doc.getElementById("tablePartesPrincipais") || doc.getElementById("tableTodasPartes");
+  if (!table) return { exequente, executado };
+
+  const rows = table.querySelectorAll("tr");
+  rows.forEach(tr => {
+    const labelEl = tr.querySelector(".tipoDeParticipacao, .label");
+    if (!labelEl) return;
+
+    const label = (labelEl.textContent || "").toLowerCase();
+    const nomeEl = tr.querySelector(".nomeParteEAdvogado, .nomeParte, td:last-child");
+    if (!nomeEl) return;
+
+    const nome = (nomeEl.textContent || "").trim().split("\n")[0].trim();
+    if (!nome) return;
+
+    const isPoloAtivo =
+      label.includes("exequente") ||
+      label.includes("exeqte") ||
+      label.includes("exeq") ||
+      label.includes("requerente") ||
+      label.includes("autor") ||
+      label.includes("polo ativo");
+
+    const isPoloPassivo =
+      label.includes("executado") ||
+      label.includes("executada") ||
+      label.includes("exectdo") ||
+      label.includes("exectda") ||
+      label.includes("exect") ||
+      label.includes("requerido") ||
+      label.includes("polo passivo");
+
+    if (!exequente && isPoloAtivo) exequente = nome;
+    else if (!executado && isPoloPassivo) executado = nome;
+  });
+
+  return { exequente, executado };
 }
