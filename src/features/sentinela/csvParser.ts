@@ -25,7 +25,8 @@ function normalizeHeader(s: string): string {
   return s
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "") // remove acentos
+    .replace(/[^a-z0-9]/g, "")     // remove tudo que não é letra ou número
     .trim();
 }
 
@@ -70,9 +71,7 @@ function splitCsvLine(line: string, sep: string): string[] {
 /** Mapeia aliases de nomes de coluna para chaves internas. */
 const COLUMN_ALIASES: Record<string, string> = {
   // Número do processo
-  numero_cnj: "numeroCnj",
   numerocnj: "numeroCnj",
-  numero_processo: "numeroCnj",
   numeroprocesso: "numeroCnj",
   processo: "numeroCnj",
   cnj: "numeroCnj",
@@ -80,55 +79,49 @@ const COLUMN_ALIASES: Record<string, string> = {
   tribunal: "tribunal",
   // Vara
   vara: "vara",
-  vara_comarca: "vara",
   varacomarca: "vara",
   // Comarca
   comarca: "comarca",
   // Classe
   classe: "classe",
-  classe_processual: "classe",
+  classeprocessual: "classe",
   // Valor
   valor: "valorCausa",
-  valor_causa: "valorCausa",
   valorcausa: "valorCausa",
-  valor_da_causa: "valorCausa",
+  valordacausa: "valorCausa",
+  valordodebito: "valorCausa",
+  valordaexecucao: "valorCausa",
+  valorprincipal: "valorCausa",
+  valorr: "valorCausa",
   // Data de distribuição
-  data_distribuicao: "dataDistribuicao",
   datadistribuicao: "dataDistribuicao",
-  data_ajuizamento: "dataDistribuicao",
+  dataajuizamento: "dataDistribuicao",
   distribuicao: "dataDistribuicao",
   // Exequente
   exequente: "exequente",
-  polo_ativo: "exequente",
   poloativo: "exequente",
   autor: "exequente",
   // Executado
   executado: "executado",
-  polo_passivo: "executado",
+  executados: "executado",
   polopassivo: "executado",
   reu: "executado",
-  réu: "executado",
+  partepassiva: "executado",
+  devedor: "executado",
   // CNPJ executado
   cnpj: "cnpjExecutado",
-  cnpj_executado: "cnpjExecutado",
+  cnpjexecutado: "cnpjExecutado",
   // Data do evento
-  data_movimento: "dataEvento",
   datamovimento: "dataEvento",
-  data_andamento: "dataEvento",
   dataandamento: "dataEvento",
-  data_evento: "dataEvento",
   dataevento: "dataEvento",
   data: "dataEvento",
   // Texto do evento
-  texto_movimento: "textoEvento",
   textomovimento: "textoEvento",
   movimentacao: "textoEvento",
-  movimentação: "textoEvento",
   descricao: "textoEvento",
-  descrição: "textoEvento",
   andamento: "textoEvento",
   texto: "textoEvento",
-  texto_evento: "textoEvento",
   textoevento: "textoEvento",
 };
 
@@ -136,7 +129,7 @@ const COLUMN_ALIASES: Record<string, string> = {
 function classificarExecucaoFiscal(classe: string, exequente: string): boolean {
   const c = normalizeHeader(classe);
   const e = normalizeHeader(exequente);
-  if (/execu[cç][aã]o\s+fiscal/.test(c)) return true;
+  if (/execucaofiscal/.test(c)) return true;
   if (/\b(fazenda|pgfn|procuradoria|municipio|estado|uniao|municipio)\b/.test(e)) return true;
   return false;
 }
