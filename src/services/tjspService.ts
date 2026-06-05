@@ -218,15 +218,20 @@ export async function buscarProcessosPorCnpj(
     let exequente = "";
     let executado = "";
     {
-      const blocos = div.querySelectorAll<HTMLElement>(".unidadeParticipacao");
-      let exequenteBlocoEncontrado = false;
-      let executadoBlocoEncontrado = false;
-      blocos.forEach((bloco) => {
-        const labelEl = bloco.querySelector(".labelParticipacao, .tipoParticipacao");
-        const label = limparTexto(labelEl?.textContent).toLowerCase();
-        const nomeEl = bloco.querySelector<HTMLElement>(".nomeParte");
+      // Procura por todos os elementos que podem conter o tipo de participação
+      const labels = div.querySelectorAll<HTMLElement>("label.tipoDeParticipacao, .tipoParticipacao, .labelParticipacao");
+      labels.forEach((labelEl) => {
+        const label = limparTexto(labelEl.textContent).toLowerCase();
+
+        // O nome geralmente está no próximo elemento ou no pai
+        let nomeEl = labelEl.nextElementSibling as HTMLElement;
+        if (!nomeEl || !nomeEl.classList.contains("nomeParte")) {
+          nomeEl = labelEl.parentElement?.querySelector(".nomeParte") as HTMLElement;
+        }
+
         if (!nomeEl) return;
         const nome = limparTexto(nomeEl.textContent.split("\n")[0]);
+
         const isPoloAtivo =
           label.includes("exequente") ||
           label.includes("exeqte") ||
@@ -250,24 +255,23 @@ export async function buscarProcessosPorCnpj(
           label.includes("agravado") ||
           label.includes("apelado") ||
           label.includes("polo passivo");
-        if (!exequenteBlocoEncontrado && isPoloAtivo) {
+
+        if (!exequente && isPoloAtivo) {
           exequente = nome;
-          exequenteBlocoEncontrado = true;
-        } else if (!executadoBlocoEncontrado && isPoloPassivo) {
+        } else if (!executado && isPoloPassivo) {
           executado = nome;
-          executadoBlocoEncontrado = true;
         }
       });
       // Fallback por posição se não encontrou via label (estrutura desconhecida)
-      if (!exequenteBlocoEncontrado || !executadoBlocoEncontrado) {
+      if (!exequente || !executado) {
         const parteEls = div.querySelectorAll(".nomeParte");
-        if (!exequenteBlocoEncontrado) {
+        if (!exequente) {
           exequente = limparTexto(parteEls[0]?.textContent.split("\n")[0]);
         }
-        if (!executadoBlocoEncontrado) {
+        if (!executado) {
           executado = limparTexto(parteEls[1]?.textContent.split("\n")[0]);
         }
-        if (!exequenteBlocoEncontrado || !executadoBlocoEncontrado) {
+        if (!exequente || !executado) {
           const numeroCnjDebug = limparTexto(linkEl.textContent);
           console.warn(
             `[tjspService] Extração de partes por label falhou — usando fallback por posição. numeroCnj: ${numeroCnjDebug}`
