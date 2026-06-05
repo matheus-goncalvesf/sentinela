@@ -346,6 +346,6 @@ function StatusLabel({ status }: { status: StatusCnpj }) {
     case "buscando_andamentos": return <>{status.nProcessos} processo(s) - buscando andamentos...</>;
     case "concluido": return <>{status.nProcessos} processo(s) analisado(s)</>;
     case "sem_resultado": return <>nenhum processo encontrado</>;
-    case "erro": return <span className="text-red-400">{status.mensagem.slice(0, 50)}</span>;
+    case "erro": return <div className="p-2 border border-red-900/50 bg-red-950/20 rounded text-xs text-red-500 font-mono break-all">{status.mensagem}</div>;
   }
 }
