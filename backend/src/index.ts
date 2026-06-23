@@ -8,6 +8,18 @@ const API_KEY = process.env.API_KEY || "sentinela-dev-key";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_MODEL = "gemini-1.5-flash";
 
+// Rota de Health Check - ANTES de tudo para garantir que o Railway veja o servidor ativo
+app.get("/health", (_req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    env: {
+      gemini: !!GEMINI_API_KEY,
+      port: PORT
+    }
+  });
+});
+
 // Middleware de CORS ultra-permissivo (versão final)
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
@@ -22,14 +34,6 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json({ limit: "10mb" }));
-
-app.get("/health", (_req, res) => {
-  res.json({
-    status: "ok",
-    timestamp: new Date().toISOString(),
-    gemini: GEMINI_API_KEY ? "configurado" : "não configurado",
-  });
-});
 
 app.post("/api/mapear-colunas", async (req, res) => {
   const apiKey = req.headers["x-api-key"] as string;
@@ -246,7 +250,7 @@ app.get("/api/proxy-tjsp", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`[Server] Sentinela rodando na porta ${PORT}`);
-  console.log(`[Server] Health: http://localhost:${PORT}/health`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`[Server] Sentinela rodando em 0.0.0.0:${PORT}`);
+  console.log(`[Server] Health Check em: /health`);
 });
