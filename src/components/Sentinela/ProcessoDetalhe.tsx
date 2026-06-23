@@ -201,12 +201,13 @@ export function ProcessoDetalhe({ processo, analise, onVoltar }: ProcessoDetalhe
 
                 {/* Contatos em destaque */}
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {(dadosCnpj.ddd_telefone_1 || dadosCnpj.ddd_telefone_2) && (
-                    <div className="flex items-start gap-2.5 rounded-lg border border-border bg-secondary/50 px-3 py-2.5">
-                      <Phone className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" />
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Telefone</p>
-                        {dadosCnpj.ddd_telefone_1 && (
+                  {/* Telefone — sempre visível */}
+                  <div className="flex items-start gap-2.5 rounded-lg border border-border bg-secondary/50 px-3 py-2.5">
+                    <Phone className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Telefone</p>
+                      {dadosCnpj.ddd_telefone_1 ? (
+                        <>
                           <p className="text-sm font-medium text-foreground">
                             <a
                               href={`tel:+55${dadosCnpj.ddd_telefone_1.replace(/\D/g, "")}`}
@@ -215,26 +216,29 @@ export function ProcessoDetalhe({ processo, analise, onVoltar }: ProcessoDetalhe
                               {formatarTelefone(dadosCnpj.ddd_telefone_1)}
                             </a>
                           </p>
-                        )}
-                        {dadosCnpj.ddd_telefone_2 && dadosCnpj.ddd_telefone_2 !== dadosCnpj.ddd_telefone_1 && (
-                          <p className="text-xs text-muted-foreground">
-                            <a
-                              href={`tel:+55${dadosCnpj.ddd_telefone_2.replace(/\D/g, "")}`}
-                              className="transition-colors hover:text-primary"
-                            >
-                              {formatarTelefone(dadosCnpj.ddd_telefone_2)}
-                            </a>
-                          </p>
-                        )}
-                      </div>
+                          {dadosCnpj.ddd_telefone_2 && dadosCnpj.ddd_telefone_2 !== dadosCnpj.ddd_telefone_1 && (
+                            <p className="text-xs text-muted-foreground">
+                              <a
+                                href={`tel:+55${dadosCnpj.ddd_telefone_2.replace(/\D/g, "")}`}
+                                className="transition-colors hover:text-primary"
+                              >
+                                {formatarTelefone(dadosCnpj.ddd_telefone_2)}
+                              </a>
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-sm text-muted-foreground/50 italic">Não fornecido</p>
+                      )}
                     </div>
-                  )}
+                  </div>
 
-                  {dadosCnpj.email && (
-                    <div className="flex items-start gap-2.5 rounded-lg border border-border bg-secondary/50 px-3 py-2.5">
-                      <Mail className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" />
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">E-mail</p>
+                  {/* E-mail — sempre visível */}
+                  <div className="flex items-start gap-2.5 rounded-lg border border-border bg-secondary/50 px-3 py-2.5">
+                    <Mail className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">E-mail</p>
+                      {dadosCnpj.email ? (
                         <p className="truncate text-sm font-medium text-foreground">
                           <a
                             href={`mailto:${dadosCnpj.email}`}
@@ -243,15 +247,11 @@ export function ProcessoDetalhe({ processo, analise, onVoltar }: ProcessoDetalhe
                             {dadosCnpj.email.toLowerCase()}
                           </a>
                         </p>
-                      </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground/50 italic">Não fornecido</p>
+                      )}
                     </div>
-                  )}
-
-                  {!dadosCnpj.ddd_telefone_1 && !dadosCnpj.ddd_telefone_2 && !dadosCnpj.email && (
-                    <p className="col-span-2 text-xs text-muted-foreground/60">
-                      Nenhum telefone ou e-mail cadastrado na Receita Federal.
-                    </p>
-                  )}
+                  </div>
                 </div>
 
                 <div className="h-px bg-border" />
