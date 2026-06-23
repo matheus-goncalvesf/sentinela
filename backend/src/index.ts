@@ -8,19 +8,20 @@ const API_KEY = process.env.API_KEY || "sentinela-dev-key";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_MODEL = "gemini-1.5-flash";
 
-// Middleware de CORS ultra-permissivo
+// Middleware de CORS ultra-permissivo (versão final)
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
-  res.header("Access-Control-Allow-Headers", "Content-Type, x-api-key, Authorization, Origin, Accept");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-api-key, Authorization, Origin, Accept, X-Requested-With");
 
   if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
+    console.log(`[CORS] Respondendo OPTIONS para ${req.url}`);
+    return res.status(204).send();
   }
   next();
 });
 
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({ limit: "10mb" }));
 
 app.get("/health", (_req, res) => {
   res.json({
