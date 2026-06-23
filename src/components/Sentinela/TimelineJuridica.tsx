@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { EFEITO_DOT_COLORS } from "../../features/sentinela/constants";
 import { formatDateBR } from "../../features/sentinela/dateUtils";
+import { Button } from "../ui/button";
 import type { EventoProcessual } from "../../features/sentinela/types";
 
 interface TimelineJuridicaProps {
@@ -41,11 +43,13 @@ function EventoItem({
   isMarco,
   isUltimoAto,
   isInterrupcao,
+  todosExpandidos,
 }: {
   evento: EventoProcessual;
   isMarco: boolean;
   isUltimoAto: boolean;
   isInterrupcao: boolean;
+  todosExpandidos: boolean;
 }) {
   const [expandido, setExpandido] = useState(false);
   const dotColor = EFEITO_DOT_COLORS[evento.efeitoJuridico] ?? "bg-slate-500";
@@ -93,10 +97,10 @@ function EventoItem({
         </div>
 
         <p className="mt-1 text-sm text-foreground">
-          {expandido || evento.textoBruto.length <= 80
+          {todosExpandidos || expandido || evento.textoBruto.length <= 80
             ? evento.textoBruto
             : evento.textoBruto.slice(0, 80) + "..."}
-          {evento.textoBruto.length > 80 && (
+          {!todosExpandidos && evento.textoBruto.length > 80 && (
             <button
               onClick={() => setExpandido((p) => !p)}
               className="ml-1 text-xs text-primary hover:underline"
@@ -127,9 +131,28 @@ export function TimelineJuridica({
   ultimoAtoUtilId,
   interrupcoes,
 }: TimelineJuridicaProps) {
+  const [todosExpandidos, setTodosExpandidos] = useState(false);
+  const [copiarCopiado, setCopiarCopiado] = useState(false);
   const interrupcoesIds = new Set(interrupcoes.map((ev) => ev.id));
   const comData = eventos.filter((ev) => ev.data !== null);
   const semData = eventos.filter((ev) => ev.data === null);
+
+  function handleExpandirTodos() {
+    setTodosExpandidos((p) => !p);
+  }
+
+  function handleCopiarTodos() {
+    const texto = eventos
+      .map((ev, i) => {
+        const data = ev.data ? formatDateBR(ev.data) : "Data não identificada";
+        return `${i + 1}. [${data}] ${ev.textoBruto}`;
+      })
+      .join("\n\n");
+    navigator.clipboard.writeText(texto).then(() => {
+      setCopiarCopiado(true);
+      setTimeout(() => setCopiarCopiado(false), 2000);
+    });
+  }
 
   if (eventos.length === 0) {
     return (
@@ -141,6 +164,16 @@ export function TimelineJuridica({
 
   return (
     <div>
+      <div className="mb-4 flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={handleExpandirTodos} className="gap-1.5 text-xs">
+          {todosExpandidos ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          {todosExpandidos ? "Recolher todos" : "Expandir todos"}
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleCopiarTodos} className="gap-1.5 text-xs">
+          <Copy className="h-3.5 w-3.5" />
+          {copiarCopiado ? "Copiado!" : "Copiar todos"}
+        </Button>
+      </div>
       <div className="relative">
         {comData.map((evento) => (
           <EventoItem
@@ -149,6 +182,7 @@ export function TimelineJuridica({
             isMarco={evento.id === marcoInicialId}
             isUltimoAto={evento.id === ultimoAtoUtilId}
             isInterrupcao={interrupcoesIds.has(evento.id)}
+            todosExpandidos={todosExpandidos}
           />
         ))}
       </div>
