@@ -9,6 +9,7 @@ import { formatDateBR } from "../../features/sentinela/dateUtils";
 import type { AnalisePrescricao, Processo } from "../../features/sentinela/types";
 import { TimelineJuridica } from "./TimelineJuridica";
 import { buscarDadosCnpj, formatarTelefone, type DadosCnpj } from "../../services/receitaService";
+import { getBackendUrl } from "../../features/sentinela/classificadorLLM";
 
 interface ProcessoDetalheProps {
   processo: Processo;
@@ -29,6 +30,7 @@ export function ProcessoDetalhe({ processo, analise, onVoltar }: ProcessoDetalhe
   const [copiado, setCopiado] = useState(false);
   const [dadosCnpj, setDadosCnpj] = useState<DadosCnpj | null>(null);
   const [loadingCnpj, setLoadingCnpj] = useState(false);
+  const [loadingEmail, setLoadingEmail] = useState(false);
 
   useEffect(() => {
     const cnpj = processo.cnpjExecutado;
@@ -38,6 +40,33 @@ export function ProcessoDetalhe({ processo, analise, onVoltar }: ProcessoDetalhe
       .then((dados) => setDadosCnpj(dados))
       .finally(() => setLoadingCnpj(false));
   }, [processo.cnpjExecutado]);
+
+  async function handleEnviarEmail() {
+    setLoadingEmail(true);
+    try {
+      const backendUrl = getBackendUrl();
+      const apiKey = localStorage.getItem("sentinela_api_key") || "sentinela-dev-key";
+
+      const res = await fetch(`${backendUrl}/api/gerar-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+        body: JSON.stringify({ processo, analise })
+      });
+
+      if (!res.ok) throw new Error("Erro ao gerar e-mail com IA");
+
+      const { assunto, corpo } = await res.json();
+
+      const mailtoUrl = `mailto:${dadosCnpj?.email || ""}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
+      window.location.href = mailtoUrl;
+
+    } catch (err) {
+      console.error(err);
+      alert("Falha ao gerar e-mail com IA. Tente novamente.");
+    } finally {
+      setLoadingEmail(false);
+    }
+  }
 
 
   const scoreColors = SCORE_COLORS[analise.score] ?? SCORE_COLORS.inconclusivo;
@@ -179,7 +208,21 @@ export function ProcessoDetalhe({ processo, analise, onVoltar }: ProcessoDetalhe
                 <Building2 className="h-4 w-4 text-muted-foreground" />
                 Dados Cadastrais (Receita Federal)
               </CardTitle>
-              {loadingCnpj && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+              <div className="flex items-center gap-2">
+                {!loadingCnpj && dadosCnpj && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleEnviarEmail}
+                    disabled={loadingEmail}
+                    className={`h-7 gap-1.5 border-primary/30 text-[10px] font-bold uppercase tracking-wider text-primary hover:bg-primary/5 ${loadingEmail ? 'opacity-70 cursor-wait' : ''}`}
+                  >
+                    {loadingEmail ? <Loader2 className="h-3 w-3 animate-spin" /> : <Mail className="h-3 w-3" />}
+                    {loadingEmail ? "IA Escrevendo..." : (dadosCnpj.email ? "Preparar E-mail" : "Manual (Sem E-mail)")}
+                  </Button>
+                )}
+                {loadingCnpj && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+              </div>
             </div>
           </CardHeader>
           <CardContent>

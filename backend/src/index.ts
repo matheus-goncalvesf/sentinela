@@ -154,6 +154,68 @@ ${eventosStr}`;
   }
 });
 
+app.options("/api/gerar-email", (_req, res) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-api-key, Authorization");
+  res.sendStatus(204);
+});
+
+app.post("/api/gerar-email", async (req, res) => {
+  res.header("Access-Control-Allow-Origin", "*"); // Força CORS na resposta
+  const apiKey = req.headers["x-api-key"] as string;
+  if (apiKey !== API_KEY) return res.status(401).json({ error: "API key inválida" });
+  if (!GEMINI_API_KEY) return res.status(400).json({ error: "GEMINI_API_KEY não configurada" });
+
+  const { processo, analise } = req.body;
+
+  const prompt = `Você é um advogado especialista em Execução Fiscal e Direito Tributário.
+Escreva um e-mail profissional, informativo e ético (respeitando as normas da OAB contra captação ativa de clientes) para um executado cujo processo foi identificado com possível prescrição intercorrente pelo sistema "Sentinela".
+
+DADOS DO PROCESSO:
+- Número CNJ: ${processo.numeroCnj}
+- Executado: ${processo.executado}
+- Valor da Causa: ${processo.valorCausa ? `R$ ${processo.valorCausa.toLocaleString("pt-BR")}` : "Não informado"}
+- Score de Prescrição: ${analise.score}
+- Dias sem ato útil: ${analise.diasSemAtoUtil}
+- Fase atual: ${analise.fase}
+- Via sugerida: ${analise.viaSugerida}
+
+DIRETRIZES:
+1. O tom deve ser de "Alerta Informativo" e não de "Venda de Serviço".
+2. Explique brevemente o que é a Prescrição Intercorrente (Art. 40 LEF) de forma simples para um leigo.
+3. Mencione que o sistema Sentinela (ferramenta de inteligência jurídica) identificou essa situação no processo.
+4. O e-mail deve ser elegante e passar autoridade técnica.
+5. Mencione que, se confirmada a prescrição, o débito pode ser extinto judicialmente.
+6. No final, coloque que em caso de dúvidas ele pode entrar em contato pelo WhatsApp: +55 (19) 99585-9317.
+7. O e-mail deve ser assinado como "Equipe de Monitoramento Sentinela".
+
+Importante: O e-mail deve ser redigido em Português do Brasil.
+Retorne APENAS um JSON válido sem markdown: {"assunto": "...", "corpo": "..."}`;
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+        }),
+      }
+    );
+    const data = (await response.json()) as any;
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    const jsonStr = text.replace(/```json\s*|\s*```/g, "").trim();
+    const parsed = JSON.parse(jsonStr);
+    res.json(parsed);
+  } catch (err) {
+    console.error(`[Gemini Email] Erro:`, err);
+    res.status(502).json({ error: "Erro ao gerar e-mail com IA" });
+  }
+});
+
 app.options("/api/proxy-tjsp", (_req, res) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
