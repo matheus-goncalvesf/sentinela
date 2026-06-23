@@ -8,11 +8,18 @@ const API_KEY = process.env.API_KEY || "sentinela-dev-key";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_MODEL = "gemini-1.5-flash";
 
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'x-api-key', 'Authorization'],
-}));
+// Middleware de CORS ultra-permissivo
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-api-key, Authorization, Origin, Accept");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 app.use(express.json({ limit: "5mb" }));
 
 app.get("/health", (_req, res) => {
@@ -154,15 +161,7 @@ ${eventosStr}`;
   }
 });
 
-app.options("/api/gerar-email", (_req, res) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, x-api-key, Authorization");
-  res.sendStatus(204);
-});
-
 app.post("/api/gerar-email", async (req, res) => {
-  res.header("Access-Control-Allow-Origin", "*"); // Força CORS na resposta
   const apiKey = req.headers["x-api-key"] as string;
   if (apiKey !== API_KEY) return res.status(401).json({ error: "API key inválida" });
   if (!GEMINI_API_KEY) return res.status(400).json({ error: "GEMINI_API_KEY não configurada" });
@@ -216,19 +215,7 @@ Retorne APENAS um JSON válido sem markdown: {"assunto": "...", "corpo": "..."}`
   }
 });
 
-app.options("/api/proxy-tjsp", (_req, res) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, x-api-key, Authorization");
-  res.sendStatus(204);
-});
-
 app.get("/api/proxy-tjsp", async (req, res) => {
-  // Força cabeçalhos de CORS manualmente para evitar bloqueios se o middleware falhar
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, x-api-key, Authorization");
-
   const targetUrl = req.query.url as string;
 
   if (!targetUrl || !targetUrl.includes("tjsp.jus.br")) {
