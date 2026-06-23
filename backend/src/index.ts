@@ -20,18 +20,9 @@ app.get("/health", (_req, res) => {
   });
 });
 
-// Middleware de CORS ultra-permissivo (versão final)
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
-  res.header("Access-Control-Allow-Headers", "Content-Type, x-api-key, Authorization, Origin, Accept, X-Requested-With");
-
-  if (req.method === "OPTIONS") {
-    console.log(`[CORS] Respondendo OPTIONS para ${req.url}`);
-    return res.status(204).send();
-  }
-  next();
-});
+// CORS
+app.use(cors());
+app.options("*", cors());
 
 app.use(express.json({ limit: "10mb" }));
 
