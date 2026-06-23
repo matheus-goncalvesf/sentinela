@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ChevronDown, ChevronUp, Copy, ArrowLeft, AlertTriangle, FileDown } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronDown, ChevronUp, Copy, ArrowLeft, AlertTriangle, FileDown, Phone, Mail, Loader2, Building2 } from "lucide-react";
 import { exportarRelatorioPDF } from "../../features/sentinela/pdfExport";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
@@ -8,6 +8,7 @@ import { SCORE_COLORS } from "../../features/sentinela/constants";
 import { formatDateBR } from "../../features/sentinela/dateUtils";
 import type { AnalisePrescricao, Processo } from "../../features/sentinela/types";
 import { TimelineJuridica } from "./TimelineJuridica";
+import { buscarDadosCnpj, formatarTelefone, type DadosCnpj } from "../../services/receitaService";
 
 interface ProcessoDetalheProps {
   processo: Processo;
@@ -26,6 +27,18 @@ const SCORE_LABEL_FULL: Record<string, string> = {
 export function ProcessoDetalhe({ processo, analise, onVoltar }: ProcessoDetalheProps) {
   const [incertezasExpandidas, setIncertezasExpandidas] = useState(false);
   const [copiado, setCopiado] = useState(false);
+  const [dadosCnpj, setDadosCnpj] = useState<DadosCnpj | null>(null);
+  const [loadingCnpj, setLoadingCnpj] = useState(false);
+
+  useEffect(() => {
+    const cnpj = processo.cnpjExecutado;
+    if (!cnpj || cnpj.replace(/\D/g, "").length !== 14) return;
+    setLoadingCnpj(true);
+    buscarDadosCnpj(cnpj)
+      .then((dados) => setDadosCnpj(dados))
+      .finally(() => setLoadingCnpj(false));
+  }, [processo.cnpjExecutado]);
+
 
   const scoreColors = SCORE_COLORS[analise.score] ?? SCORE_COLORS.inconclusivo;
 
@@ -117,6 +130,9 @@ export function ProcessoDetalhe({ processo, analise, onVoltar }: ProcessoDetalhe
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Executado</p>
               <p className="text-foreground">{processo.executado || "—"}</p>
+              {processo.cnpjExecutado && (
+                <p className="mt-0.5 font-mono text-[11px] text-muted-foreground/60">{processo.cnpjExecutado}</p>
+              )}
             </div>
             {(processo.comarca || processo.vara) && (
               <div>
@@ -153,6 +169,129 @@ export function ProcessoDetalhe({ processo, analise, onVoltar }: ProcessoDetalhe
           </div>
         </CardContent>
       </Card>
+
+      {/* Dados Cadastrais da Receita Federal */}
+      {processo.cnpjExecutado && processo.cnpjExecutado.replace(/\D/g, "").length === 14 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                Dados Cadastrais (Receita Federal)
+              </CardTitle>
+              {loadingCnpj && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {!loadingCnpj && !dadosCnpj && (
+              <p className="text-xs text-muted-foreground/60">Dados não encontrados para este CNPJ.</p>
+            )}
+            {dadosCnpj && (
+              <div className="space-y-3">
+                {/* Razão Social / Nome Fantasia */}
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Razão Social</p>
+                  <p className="text-sm text-foreground">{dadosCnpj.razao_social}</p>
+                  {dadosCnpj.nome_fantasia && dadosCnpj.nome_fantasia !== dadosCnpj.razao_social && (
+                    <p className="text-xs text-muted-foreground">{dadosCnpj.nome_fantasia}</p>
+                  )}
+                </div>
+
+                <div className="h-px bg-border" />
+
+                {/* Contatos em destaque */}
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {(dadosCnpj.ddd_telefone_1 || dadosCnpj.ddd_telefone_2) && (
+                    <div className="flex items-start gap-2.5 rounded-lg border border-border bg-secondary/50 px-3 py-2.5">
+                      <Phone className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" />
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Telefone</p>
+                        {dadosCnpj.ddd_telefone_1 && (
+                          <p className="text-sm font-medium text-foreground">
+                            <a
+                              href={`tel:+55${dadosCnpj.ddd_telefone_1.replace(/\D/g, "")}`}
+                              className="transition-colors hover:text-primary"
+                            >
+                              {formatarTelefone(dadosCnpj.ddd_telefone_1)}
+                            </a>
+                          </p>
+                        )}
+                        {dadosCnpj.ddd_telefone_2 && dadosCnpj.ddd_telefone_2 !== dadosCnpj.ddd_telefone_1 && (
+                          <p className="text-xs text-muted-foreground">
+                            <a
+                              href={`tel:+55${dadosCnpj.ddd_telefone_2.replace(/\D/g, "")}`}
+                              className="transition-colors hover:text-primary"
+                            >
+                              {formatarTelefone(dadosCnpj.ddd_telefone_2)}
+                            </a>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {dadosCnpj.email && (
+                    <div className="flex items-start gap-2.5 rounded-lg border border-border bg-secondary/50 px-3 py-2.5">
+                      <Mail className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" />
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">E-mail</p>
+                        <p className="truncate text-sm font-medium text-foreground">
+                          <a
+                            href={`mailto:${dadosCnpj.email}`}
+                            className="transition-colors hover:text-primary"
+                          >
+                            {dadosCnpj.email.toLowerCase()}
+                          </a>
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {!dadosCnpj.ddd_telefone_1 && !dadosCnpj.ddd_telefone_2 && !dadosCnpj.email && (
+                    <p className="col-span-2 text-xs text-muted-foreground/60">
+                      Nenhum telefone ou e-mail cadastrado na Receita Federal.
+                    </p>
+                  )}
+                </div>
+
+                <div className="h-px bg-border" />
+
+                {/* Endereço e situação */}
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <p className="font-semibold uppercase tracking-wide text-muted-foreground">Situação</p>
+                    <p className={`mt-0.5 font-medium ${dadosCnpj.situacao_cadastral === 2 ? "text-emerald-400" : "text-amber-400"
+                      }`}>
+                      {dadosCnpj.descricao_situacao_cadastral}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-semibold uppercase tracking-wide text-muted-foreground">Porte</p>
+                    <p className="mt-0.5 text-foreground">{dadosCnpj.porte}</p>
+                  </div>
+                  {(dadosCnpj.municipio || dadosCnpj.uf) && (
+                    <div className="col-span-2">
+                      <p className="font-semibold uppercase tracking-wide text-muted-foreground">Endereço</p>
+                      <p className="mt-0.5 text-foreground">
+                        {[dadosCnpj.logradouro, dadosCnpj.numero, dadosCnpj.complemento]
+                          .filter(Boolean).join(", ")}
+                        {dadosCnpj.bairro ? ` — ${dadosCnpj.bairro}` : ""}
+                        {dadosCnpj.municipio ? `, ${dadosCnpj.municipio}/${dadosCnpj.uf}` : ""}
+                      </p>
+                    </div>
+                  )}
+                  {dadosCnpj.cnae_fiscal_descricao && (
+                    <div className="col-span-2">
+                      <p className="font-semibold uppercase tracking-wide text-muted-foreground">Atividade principal</p>
+                      <p className="mt-0.5 text-foreground">{dadosCnpj.cnae_fiscal_descricao}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Via sugerida */}
       <Card className="border-primary/25 bg-primary/5">
