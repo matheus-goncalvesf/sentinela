@@ -15,13 +15,11 @@ const cache = new Map<string, ClassificacaoLLM>();
 
 export function getBackendUrl(): string {
   try {
+    const envUrl = import.meta.env.VITE_BACKEND_URL;
+    if (envUrl) return envUrl;
     const saved = localStorage.getItem(BACKEND_URL_KEY);
-    // Se estiver apontando para localhost, ignora e usa o default de produção
-    if (saved && saved.includes("localhost")) {
-      localStorage.removeItem(BACKEND_URL_KEY);
-      return DEFAULT_BACKEND_URL;
-    }
-    return saved || DEFAULT_BACKEND_URL;
+    if (saved) return saved;
+    return DEFAULT_BACKEND_URL;
   } catch {
     return DEFAULT_BACKEND_URL;
   }
@@ -105,7 +103,7 @@ export async function enriquecerProcessoComLLM(processo: Processo): Promise<void
     const health = await fetch(`${backendUrl}/health`, { signal: AbortSignal.timeout(3000) });
     if (!health.ok) return;
     const healthData = await health.json();
-    if (healthData.gemini !== "configurado") return;
+    if (healthData.gemini) return;
   } catch {
     return;
   }

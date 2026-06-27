@@ -414,7 +414,7 @@ function LLMStatusSection() {
         const res = await fetch(`${backendUrl}/health`, { signal: AbortSignal.timeout(3000) });
         if (!res.ok) { setStatus("offline"); return; }
         const data = await res.json();
-        if (data.gemini === "configurado") setStatus("online");
+        if (data.gemini) setStatus("online");
         else setStatus("sem_chave");
       } catch {
         setStatus("offline");
